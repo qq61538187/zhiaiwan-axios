@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - per-request-override</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Per-Request Override</h1>
+      <p>全局配置 <code>successCode: [0]</code>、<code>retry: { count: 2 }</code>，在单个请求中可覆盖这些配置</p>
+    </div>
+
+    <!-- successCode override -->
+    <div class="card">
+      <h3>1. successCode 覆盖</h3>
+      <p>全局 <code>successCode: [0]</code>，旧接口返回 <code>code: 200</code> 表示成功。不覆盖会报 Business Error，覆盖后正常解析</p>
+      <div class="btn-group">
+        <button id="scDefault" class="btn btn-danger">用全局 successCode (报错)</button>
+        <button id="scOverride" class="btn btn-success">覆盖 successCode: [200] (成功)</button>
+      </div>
+      <div id="scOutput" class="output mt-md"></div>
+    </div>
+
+    <!-- retry override -->
+    <div class="card">
+      <h3>2. retry 覆盖</h3>
+      <p>全局 <code>retry: { count: 2, delay: 500 }</code>。可以给单个请求禁用 retry，或者用不同的 retry 配置</p>
+      <div class="btn-group">
+        <button id="retryDefault" class="btn btn-primary">全局 retry (重试 2 次)</button>
+        <button id="retryDisable" class="btn btn-danger">禁用 retry: false</button>
+        <button id="retryCustom" class="btn btn-warning">自定义 retry: { count: 5 }</button>
+      </div>
+      <div id="retryOutput" class="log mt-md"></div>
+    </div>
+
+    <!-- responseTransform override -->
+    <div class="card">
+      <h3>3. responseTransform 覆盖</h3>
+      <p>全局默认解包返回 <code>data</code>，单个请求可获取原始 <code>AxiosResponse</code> 或自定义转换</p>
+      <div class="btn-group">
+        <button id="rtDefault" class="btn btn-primary">默认解包 (data)</button>
+        <button id="rtFalse" class="btn btn-ghost">responseTransform: false</button>
+        <button id="rtCustom" class="btn btn-warning">自定义 transform</button>
+      </div>
+      <div id="rtOutput" class="output mt-md"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const http = createAxios({
+      successCode: [0],
+      retry: { count: 2, delay: 500 },
+      debug: (msg) => {
+        const el = document.getElementById('retryOutput')
+        const ts = new Date().toLocaleTimeString('en', { hour12: false })
+        el.textContent = `[${ts}] ${msg}\n` + el.textContent
+      },
+    })
+
+    const show = (id, data) => { document.getElementById(id).textContent = JSON.stringify(data, null, 2) }
+    const showErr = (id, e) => {
+      const el = document.getElementById(id)
+      el.textContent = 'Error: ' + (e.businessCode !== undefined ? `Business code=${e.businessCode}, ` : '') + e.message
+      el.style.color = '#dc2626'
+    }
+
+    // === 1. successCode ===
+    document.getElementById('scDefault').onclick = async () => {
+      document.getElementById('scOutput').style.color = ''
+      try { show('scOutput', await http.get('/per-request-override/server?action=legacy')) }
+      catch (e) { showErr('scOutput', e) }
+    }
+    document.getElementById('scOverride').onclick = async () => {
+      document.getElementById('scOutput').style.color = ''
+      try {
+        const res = await http.get('/per-request-override/server?action=legacy', { successCode: [200] })
+        show('scOutput', res)
+      } catch (e) { showErr('scOutput', e) }
+    }
+
+    // === 2. retry ===
+    const retryLog = (msg) => {
+      const el = document.getElementById('retryOutput')
+      const ts = new Date().toLocaleTimeString('en', { hour12: false })
+      el.textContent = `[${ts}] ${msg}\n` + el.textContent
+    }
+
+    document.getElementById('retryDefault').onclick = async () => {
+      document.getElementById('retryOutput').textContent = ''
+      retryLog('发起请求 (全局 retry: count=2)')
+      try {
+        const res = await http.get('/per-request-override/server?action=fail-then-ok')
+        retryLog('✓ 成功: ' + JSON.stringify(res))
+      } catch (e) { retryLog('✗ 最终失败: ' + e.message) }
+    }
+
+    document.getElementById('retryDisable').onclick = async () => {
+      document.getElementById('retryOutput').textContent = ''
+      retryLog('发起请求 (retry: false，禁用重试)')
+      try {
+        const res = await http.get('/per-request-override/server?action=fail-then-ok', { retry: false })
+        retryLog('✓ 成功: ' + JSON.stringify(res))
+      } catch (e) { retryLog('✗ 立即失败 (无重试): ' + e.message) }
+    }
+
+    document.getElementById('retryCustom').onclick = async () => {
+      document.getElementById('retryOutput').textContent = ''
+      retryLog('发起请求 (retry: { count: 5, delay: 300 })')
+      try {
+        const res = await http.get('/per-request-override/server?action=fail-then-ok', {
+          retry: { count: 5, delay: 300 },
+        })
+        retryLog('✓ 成功: ' + JSON.stringify(res))
+      } catch (e) { retryLog('✗ 最终失败: ' + e.message) }
+    }
+
+    // === 3. responseTransform ===
+    document.getElementById('rtDefault').onclick = async () => {
+      document.getElementById('rtOutput').style.color = ''
+      try { show('rtOutput', await http.get('/per-request-override/server?action=raw')) }
+      catch (e) { showErr('rtOutput', e) }
+    }
+
+    document.getElementById('rtFalse').onclick = async () => {
+      document.getElementById('rtOutput').style.color = ''
+      try {
+        const raw = await http.get('/per-request-override/server?action=raw', {
+          responseTransform: false,
+        })
+        show('rtOutput', {
+          _note: 'responseTransform: false → 原始 AxiosResponse',
+          status: raw.status,
+          headers: { 'x-request-id': raw.headers['x-request-id'], 'x-rate-limit-remaining': raw.headers['x-rate-limit-remaining'] },
+          data: raw.data,
+        })
+      } catch (e) { showErr('rtOutput', e) }
+    }
+
+    document.getElementById('rtCustom').onclick = async () => {
+      document.getElementById('rtOutput').style.color = ''
+      try {
+        const res = await http.get('/per-request-override/server?action=raw', {
+          responseTransform: (response) => ({
+            payload: response.data.data,
+            requestId: response.headers['x-request-id'],
+            rateLimit: response.headers['x-rate-limit-remaining'],
+          }),
+        })
+        show('rtOutput', { _note: '自定义 transform: 提取 payload + headers 字段', ...res })
+      } catch (e) { showErr('rtOutput', e) }
+    }
+  </script>
+</body>
+</html>

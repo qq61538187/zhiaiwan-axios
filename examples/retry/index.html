@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - retry</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Auto Retry</h1>
+      <p>服务端每 3 次请求才成功一次。配置 <code>retry: { count: 3 }</code> 自动重试 + 指数退避。</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button id="sendBtn" class="btn btn-primary">发送请求（自动重试）</button>
+        <button id="noRetryBtn" class="btn btn-ghost">发送请求（禁用重试）</button>
+      </div>
+      <div class="label mt-lg">日志</div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const logEl = document.getElementById('log')
+    const log = (msg) => { logEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + logEl.textContent }
+
+    const http = createAxios({
+      successCode: [0],
+      retry: { count: 3, delay: 1000, maxDelay: 5000, statusCodes: [500, 502, 503] },
+      debug: (msg) => log('DEBUG ' + msg),
+    })
+
+    document.getElementById('sendBtn').onclick = async () => {
+      log('GET /retry/server (retry=3)')
+      const t = Date.now()
+      try {
+        const res = await http.get('/retry/server')
+        log('Success (' + (Date.now() - t) + 'ms): ' + JSON.stringify(res))
+      } catch (e) { log('Failed (' + (Date.now() - t) + 'ms): ' + e.message) }
+    }
+
+    document.getElementById('noRetryBtn').onclick = async () => {
+      log('GET /retry/server (retry=false)')
+      try {
+        const res = await http.get('/retry/server', { retry: false })
+        log('Success: ' + JSON.stringify(res))
+      } catch (e) { log('Failed: ' + e.message) }
+    }
+  </script>
+</body>
+</html>

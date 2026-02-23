@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - download</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>File Download + Progress</h1>
+      <p>使用 <code>http.download()</code> 下载文件，带实时进度回调，完成后自动触发浏览器保存</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button id="dlBtn" class="btn btn-primary">下载文件 (512 KB)</button>
+      </div>
+      <div class="progress-track mt-md">
+        <div id="bar" class="progress-bar"></div>
+      </div>
+      <div class="status-row">
+        <span id="label">等待下载...</span>
+        <span id="size" class="mono"></span>
+      </div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+    const http = createAxios({ successCode: [0] })
+    const bar   = document.getElementById('bar')
+    const label = document.getElementById('label')
+    const size  = document.getElementById('size')
+    const log   = document.getElementById('log')
+
+    const ts = () => new Date().toLocaleTimeString('en', { hour12: false })
+    const addLog = (msg) => { log.textContent = `[${ts()}] ${msg}\n` + log.textContent }
+    const fmt = (bytes) => bytes >= 1024 ? (bytes / 1024).toFixed(1) + ' KB' : bytes + ' B'
+
+    document.getElementById('dlBtn').onclick = async () => {
+      bar.style.width = '0%'
+      label.textContent = '下载中...'
+      size.textContent = ''
+      addLog('开始下载 /download/server')
+
+      try {
+        const response = await http.download('/download/server', {
+          onProgress: ({ loaded, total, percent }) => {
+            bar.style.width = percent + '%'
+            label.textContent = `${percent}%`
+            size.textContent = `${fmt(loaded)} / ${fmt(total)}`
+          },
+        })
+
+        addLog(`下载完成，大小: ${fmt(response.data.size)}`)
+        label.textContent = '下载完成 ✓'
+        bar.style.background = '#059669'
+
+        const blob = response.data
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = 'demo-file.bin'
+        a.click()
+        URL.revokeObjectURL(a.href)
+        addLog('已触发浏览器保存')
+      } catch (e) {
+        label.textContent = '下载失败'
+        bar.style.background = '#dc2626'
+        addLog('Error: ' + e.message)
+      }
+    }
+  </script>
+</body>
+</html>

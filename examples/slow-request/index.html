@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - slow-request</title>
+  <link rel="stylesheet" href="../shared.css">
+  <style>
+    .toast { position: fixed; top: 20px; right: 20px; background: #f59e0b; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateX(calc(100% + 30px)); transition: transform 300ms ease; z-index: 999; }
+    .toast.show { transform: translateX(0); }
+  </style>
+</head>
+<body>
+  <div id="slowToast" class="toast">⏳ 请求较慢，请耐心等待...</div>
+
+  <div class="page">
+    <div class="page-header">
+      <h1>Slow Request Detection</h1>
+      <p>设置 <code>slowThreshold</code> 后，超过阈值的请求会触发 <code>onSlowRequest</code> 回调。本示例阈值设为 <strong>2 秒</strong></p>
+    </div>
+
+    <div class="card">
+      <h3>发起请求</h3>
+      <p>快请求不会触发提示，慢请求超过 2s 后右上角弹出 Toast</p>
+      <div class="btn-group">
+        <button data-delay="500" class="btn btn-primary">快请求 (0.5s)</button>
+        <button data-delay="1500" class="btn btn-ghost">中等 (1.5s)</button>
+        <button data-delay="3000" class="btn btn-warning">慢请求 (3s)</button>
+        <button data-delay="5000" class="btn btn-danger">很慢 (5s)</button>
+      </div>
+      <div class="status-row mt-md">
+        <span>慢请求触发次数: <strong id="slowCount">0</strong></span>
+      </div>
+      <div id="log" class="log mt-md"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const log = document.getElementById('log')
+    const toast = document.getElementById('slowToast')
+    const countEl = document.getElementById('slowCount')
+    let slowCount = 0
+    let toastTimer = null
+
+    const ts = () => new Date().toLocaleTimeString('en', { hour12: false })
+    const addLog = (msg, cls = '') => {
+      const line = document.createElement('div')
+      line.textContent = `[${ts()}] ${msg}`
+      if (cls) line.style.color = cls
+      log.prepend(line)
+    }
+
+    const showToast = (text) => {
+      toast.textContent = text
+      toast.classList.add('show')
+      clearTimeout(toastTimer)
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 4000)
+    }
+
+    const http = createAxios({
+      successCode: [0],
+      tracker: {
+        slowThreshold: 2000,
+        onSlowRequest: (entry) => {
+          slowCount++
+          countEl.textContent = slowCount
+          const elapsed = Date.now() - entry.startedAt
+          addLog(`⚠ 慢请求检测: ${entry.method} ${entry.url} 已超过 ${elapsed}ms`, '#f59e0b')
+          showToast(`⏳ ${entry.url} 请求较慢 (${(elapsed / 1000).toFixed(1)}s)，请耐心等待...`)
+        },
+        onRequestStart: (entry) => {
+          addLog(`→ 开始: ${entry.method} ${entry.url}`)
+        },
+        onRequestEnd: (entry) => {
+          addLog(`← 完成: ${entry.method} ${entry.url} (${entry.duration}ms)`)
+        },
+      },
+    })
+
+    document.addEventListener('click', async (e) => {
+      const delay = e.target.dataset?.delay
+      if (!delay) return
+      try {
+        await http.get(`/slow-request/server?delay=${delay}`)
+        addLog(`✓ 响应成功 (delay=${delay}ms)`, '#059669')
+      } catch (err) {
+        addLog(`✗ ${err.message}`, '#dc2626')
+      }
+    })
+  </script>
+</body>
+</html>

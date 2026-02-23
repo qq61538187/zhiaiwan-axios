@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - basic</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>CRUD — GET / POST / PUT / PATCH / DELETE</h1>
+      <p>覆盖全部 HTTP 方法，展示 <code>params</code>、自定义 <code>headers</code>、<code>responseTransform</code> 覆盖等常用场景</p>
+    </div>
+
+    <!-- GET: List -->
+    <div class="card">
+      <h3>GET — 分页列表 + 搜索</h3>
+      <p>支持 <code>params</code> 传参：<code>page</code> / <code>size</code> / <code>search</code></p>
+      <div class="btn-group">
+        <button data-action="list" class="btn btn-primary">获取全部</button>
+        <button data-action="list-page" class="btn btn-ghost">第 1 页 (size=2)</button>
+        <button data-action="list-search" class="btn btn-ghost">搜索 "bob"</button>
+      </div>
+      <div id="listOutput" class="output mt-md"></div>
+    </div>
+
+    <!-- GET: Single -->
+    <div class="card">
+      <h3>GET — 单条查询 + 自定义 Headers</h3>
+      <p>通过 <code>params: { id }</code> 查询单个用户，附带自定义请求头 <code>X-Request-Source</code>（服务端回显）</p>
+      <div class="btn-group">
+        <input id="queryId" class="input" style="width:80px;flex:none" placeholder="ID" value="1">
+        <button data-action="single" class="btn btn-primary">查询</button>
+        <button data-action="single-raw" class="btn btn-ghost">查询 (原始响应)</button>
+      </div>
+      <div id="singleOutput" class="output mt-md"></div>
+    </div>
+
+    <!-- POST -->
+    <div class="card">
+      <h3>POST — 创建</h3>
+      <input id="postName" class="input" placeholder="Name" value="Dave">
+      <input id="postEmail" class="input" placeholder="Email" value="dave@example.com">
+      <button data-action="create" class="btn btn-success mt-md">创建用户</button>
+      <div id="postOutput" class="output mt-md"></div>
+    </div>
+
+    <!-- PUT / PATCH / DELETE -->
+    <div class="grid-2">
+      <div class="card">
+        <h3>PUT — 全量更新</h3>
+        <p>替换 id=1 的全部字段</p>
+        <button data-action="put" class="btn btn-warning">PUT 更新</button>
+        <div id="putOutput" class="output mt-md"></div>
+      </div>
+      <div class="card">
+        <h3>PATCH — 局部更新</h3>
+        <p>仅修改 id=2 的 role 字段</p>
+        <button data-action="patch" class="btn btn-warning">PATCH 更新</button>
+        <div id="patchOutput" class="output mt-md"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>DELETE — 删除</h3>
+      <div class="btn-group">
+        <input id="delId" class="input" style="width:80px;flex:none" placeholder="ID" value="3">
+        <button data-action="delete" class="btn btn-danger">删除用户</button>
+      </div>
+      <div id="deleteOutput" class="output mt-md"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+    const http = createAxios({ successCode: [0] })
+
+    const $ = (id) => document.getElementById(id)
+    const show = (el, data) => { el.textContent = JSON.stringify(data, null, 2) }
+    const showErr = (el, e) => { el.textContent = 'Error: ' + e.message; el.classList.add('text-danger') }
+
+    const actions = {
+      // GET list
+      async 'list'() {
+        try { show($('listOutput'), await http.get('/basic/server')) }
+        catch (e) { showErr($('listOutput'), e) }
+      },
+      async 'list-page'() {
+        try { show($('listOutput'), await http.get('/basic/server', { params: { page: 1, size: 2 } })) }
+        catch (e) { showErr($('listOutput'), e) }
+      },
+      async 'list-search'() {
+        try { show($('listOutput'), await http.get('/basic/server', { params: { search: 'bob' } })) }
+        catch (e) { showErr($('listOutput'), e) }
+      },
+
+      // GET single + custom headers
+      async 'single'() {
+        const id = $('queryId').value
+        try {
+          show($('singleOutput'), await http.get('/basic/server', {
+            params: { id },
+            headers: { 'X-Request-Source': 'zhiaiwan-example' },
+          }))
+        } catch (e) { showErr($('singleOutput'), e) }
+      },
+      // GET single with responseTransform: false → returns raw AxiosResponse
+      async 'single-raw'() {
+        const id = $('queryId').value
+        try {
+          const raw = await http.get('/basic/server', {
+            params: { id },
+            responseTransform: false,
+          })
+          show($('singleOutput'), {
+            _note: 'responseTransform: false → 原始 AxiosResponse',
+            status: raw.status,
+            headers: Object.fromEntries(Object.entries(raw.headers)),
+            data: raw.data,
+          })
+        } catch (e) { showErr($('singleOutput'), e) }
+      },
+
+      // POST
+      async 'create'() {
+        const name = $('postName').value
+        const email = $('postEmail').value
+        try { show($('postOutput'), await http.post('/basic/server', { name, email, role: 'user' })) }
+        catch (e) { showErr($('postOutput'), e) }
+      },
+
+      // PUT
+      async 'put'() {
+        try {
+          show($('putOutput'), await http.put('/basic/server', {
+            id: 1, name: 'Alice (updated)', email: 'alice-new@example.com', role: 'superadmin',
+          }))
+        } catch (e) { showErr($('putOutput'), e) }
+      },
+
+      // PATCH
+      async 'patch'() {
+        try {
+          show($('patchOutput'), await http.patch('/basic/server', { id: 2, role: 'admin' }))
+        } catch (e) { showErr($('patchOutput'), e) }
+      },
+
+      // DELETE
+      async 'delete'() {
+        const id = $('delId').value
+        try { show($('deleteOutput'), await http.delete('/basic/server', { params: { id } })) }
+        catch (e) { showErr($('deleteOutput'), e) }
+      },
+    }
+
+    document.addEventListener('click', (e) => {
+      const action = e.target.dataset?.action
+      if (action && actions[action]) actions[action]()
+    })
+  </script>
+</body>
+</html>

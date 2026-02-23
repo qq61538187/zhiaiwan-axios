@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - cancel</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Request Cancellation</h1>
+      <p>去重、分组取消、ID 取消、全部取消、取消中断重试</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>1. 请求去重</h3>
+        <p>快速连续点击，前一个请求自动取消</p>
+        <button id="dedupBtn" class="btn btn-primary">发送请求 (2s)</button>
+        <div id="dedupLog" class="log"></div>
+      </div>
+      <div class="card">
+        <h3>2. 分组取消</h3>
+        <p>发起 3 个 group=user 请求，一键取消</p>
+        <div class="btn-group">
+          <button id="groupStartBtn" class="btn btn-primary">发起请求</button>
+          <button id="groupCancelBtn" class="btn btn-danger">取消 user 组</button>
+        </div>
+        <div id="groupLog" class="log"></div>
+      </div>
+      <div class="card">
+        <h3>3. 按 ID 取消</h3>
+        <p>精准取消指定 requestId 的请求</p>
+        <div class="btn-group">
+          <button id="idStartBtn" class="btn btn-primary">发起 search-1</button>
+          <button id="idCancelBtn" class="btn btn-danger">取消 search-1</button>
+        </div>
+        <div id="idLog" class="log"></div>
+      </div>
+      <div class="card">
+        <h3>4. 取消全部</h3>
+        <p>cancelAll() 一键取消所有进行中请求</p>
+        <div class="btn-group">
+          <button id="allStartBtn" class="btn btn-primary">发起 5 个</button>
+          <button id="allCancelBtn" class="btn btn-danger">cancelAll()</button>
+        </div>
+        <div id="allLog" class="log"></div>
+      </div>
+    </div>
+
+    <!-- 5. Cancel interrupts retry -->
+    <div class="card">
+      <h3>5. 取消中断重试</h3>
+      <p>请求失败后自动重试（最多 5 次，间隔 2s），重试期间调用 <code>cancelAll()</code> 立即终止整个重试流程。请求在重试未结束前始终保留在队列中</p>
+      <div class="btn-group">
+        <button id="retryStartBtn" class="btn btn-warning">发起请求 (始终 500)</button>
+        <button id="retryCancelBtn" class="btn btn-danger">cancelAll() 中断重试</button>
+      </div>
+      <div class="status-row mt-md">
+        <span>队列: <strong id="retryQueue">0</strong></span>
+        <span>loading: <strong id="retryLoading">false</strong></span>
+      </div>
+      <div id="retryLog" class="log mt-md"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const ts = () => new Date().toLocaleTimeString('en', { hour12: false })
+    const mkLog = (id) => {
+      const el = document.getElementById(id)
+      return (msg, color) => {
+        const div = document.createElement('div')
+        div.textContent = `[${ts()}] ${msg}`
+        if (color) div.style.color = color
+        el.prepend(div)
+      }
+    }
+
+    // 1. Dedup
+    const httpDedup = createAxios({ successCode: [0], cancel: { deduplicate: true } })
+    const dedupLog = mkLog('dedupLog')
+    let dc = 0
+    document.getElementById('dedupBtn').onclick = async () => {
+      const n = ++dc; dedupLog('Send #' + n)
+      try { const r = await httpDedup.get('/cancel/server?delay=2000'); dedupLog('#' + n + ' ok', '#059669') }
+      catch (e) { dedupLog('#' + n + ' cancelled', '#dc2626') }
+    }
+
+    // 2. Group
+    const httpG = createAxios({ successCode: [0] })
+    const gLog = mkLog('groupLog')
+    document.getElementById('groupStartBtn').onclick = () => {
+      ['info','orders','settings'].forEach(n => {
+        gLog('Send ' + n)
+        httpG.get('/cancel/server?delay=3000', { requestGroup: 'user' })
+          .then(() => gLog(n + ' ok', '#059669'))
+          .catch(() => gLog(n + ' cancelled', '#dc2626'))
+      })
+    }
+    document.getElementById('groupCancelBtn').onclick = () => { httpG.cancelGroup('user'); gLog('cancelGroup("user")', '#f59e0b') }
+
+    // 3. ID
+    const httpId = createAxios({ successCode: [0] })
+    const idLog = mkLog('idLog')
+    document.getElementById('idStartBtn').onclick = async () => {
+      idLog('Send (id=search-1)')
+      try { const r = await httpId.get('/cancel/server?delay=3000', { requestId: 'search-1' }); idLog('ok', '#059669') }
+      catch (e) { idLog('cancelled', '#dc2626') }
+    }
+    document.getElementById('idCancelBtn').onclick = () => { httpId.cancelById('search-1'); idLog('cancelById("search-1")', '#f59e0b') }
+
+    // 4. All
+    const httpAll = createAxios({ successCode: [0] })
+    const aLog = mkLog('allLog')
+    document.getElementById('allStartBtn').onclick = () => {
+      for (let i = 1; i <= 5; i++) {
+        aLog('Send #' + i)
+        httpAll.get('/cancel/server?delay=3000')
+          .then(() => aLog('#' + i + ' ok', '#059669'))
+          .catch(() => aLog('#' + i + ' cancelled', '#dc2626'))
+      }
+    }
+    document.getElementById('allCancelBtn').onclick = () => { httpAll.cancelAll(); aLog('cancelAll()', '#f59e0b') }
+
+    // 5. Cancel interrupts retry
+    const queueEl = document.getElementById('retryQueue')
+    const loadingEl = document.getElementById('retryLoading')
+    const rLog = mkLog('retryLog')
+
+    const httpRetry = createAxios({
+      successCode: [0],
+      retry: { count: 5, delay: 2000 },
+      tracker: {
+        onLoadingChange: (l) => { loadingEl.textContent = String(l) },
+        onQueueChange: (q) => { queueEl.textContent = q.length },
+        onRequestStart: (e) => rLog(`开始: ${e.method} ${e.url}`),
+        onRequestEnd: (e) => rLog(`结束: ${e.method} ${e.url} (${e.duration}ms)`),
+      },
+      debug: (msg) => rLog(`[debug] ${msg}`, '#64748b'),
+    })
+
+    document.getElementById('retryStartBtn').onclick = async () => {
+      document.getElementById('retryLog').textContent = ''
+      rLog('发起请求 (服务端始终返回 500，将触发 5 次重试)')
+      try {
+        const res = await httpRetry.get('/cancel/server?delay=500&fail=1')
+        rLog('✓ 成功: ' + JSON.stringify(res), '#059669')
+      } catch (e) {
+        if (e.code === 'ERR_CANCELED' || e.message === 'canceled') {
+          rLog('✗ 被取消 — 重试流程已中断', '#f59e0b')
+        } else {
+          rLog('✗ 最终失败 (重试耗尽): ' + e.message, '#dc2626')
+        }
+      }
+    }
+
+    document.getElementById('retryCancelBtn').onclick = () => {
+      const q = httpRetry.queue.length
+      rLog(`cancelAll() — 当前队列 ${q} 个请求`, '#f59e0b')
+      httpRetry.cancelAll()
+    }
+  </script>
+</body>
+</html>

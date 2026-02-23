@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - auth refresh</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Auth Token + 401 Auto Refresh</h1>
+      <p>初始 token 为 <code>token-001</code>。点击「使 Token 失效」模拟过期，再请求时自动刷新并重放。</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button id="getUser" class="btn btn-primary">获取用户信息</button>
+        <button id="expireToken" class="btn btn-warning">使 Token 失效</button>
+      </div>
+      <div class="status-row mt-md">
+        <span>当前 Token:</span>
+        <strong id="currentToken" class="mono">token-001</strong>
+      </div>
+      <div class="label mt-lg">日志</div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    let clientToken = 'token-001'
+    const tokenEl = document.getElementById('currentToken')
+    const logEl = document.getElementById('log')
+    const log = (msg) => { logEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + logEl.textContent }
+
+    const http = createAxios({
+      successCode: [0],
+      auth: {
+        getToken: () => clientToken,
+        async refreshToken() {
+          log('refreshToken() called...')
+          const res = await fetch('/auth-refresh/server', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grant_type: 'refresh' }),
+          })
+          const data = await res.json()
+          clientToken = data.data
+          tokenEl.textContent = clientToken
+          log('Token refreshed: ' + clientToken)
+          return clientToken
+        },
+        onUnauthorized() { log('Refresh failed — need re-login') },
+      },
+    })
+
+    document.getElementById('getUser').onclick = async () => {
+      log('GET /auth-refresh/server (token: ' + clientToken + ')')
+      try {
+        const res = await http.get('/auth-refresh/server')
+        log('Success: ' + JSON.stringify(res))
+      } catch (e) { log('Error: ' + e.message) }
+    }
+
+    document.getElementById('expireToken').onclick = () => {
+      clientToken = 'expired-token'
+      tokenEl.textContent = clientToken
+      log('Token set to invalid: ' + clientToken)
+    }
+  </script>
+</body>
+</html>
