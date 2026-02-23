@@ -17,6 +17,9 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./global": {
+      "types": "./dist/global.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "sideEffects": false,

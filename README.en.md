@@ -426,6 +426,28 @@ export type {
 }
 ```
 
+## Global Types (import-free)
+
+This package ships a `global.d.ts` that injects all public types into the global scope, eliminating the need for frequent `import type` statements.
+
+Add a single line to any `.d.ts` file in your project (e.g. `types/zhiaiwan-axios.d.ts`):
+
+```ts
+/// <reference types="@zhiaiwan/axios/global" />
+```
+
+Then use all types directly throughout your project — no manual imports needed:
+
+```ts
+// No more: import type { ZhiAxiosInstance, ApiResponse, ... } from '@zhiaiwan/axios'
+const http: ZhiAxiosInstance = createAxios({ /* ... */ })
+
+async function getUser(): Promise<ApiResponse<UserInfo>> {
+  return http.get<UserInfo>('/user/info')
+}
+```
+
+
 ## Project Structure
 
 ```
@@ -444,7 +466,8 @@ zhiaiwan-axios/
 │   └── logger.ts          # Debug logging
 ├── tests/                 # Unit tests + integration tests
 ├── examples/              # Usage examples (17 scenarios, HTML + server.js, run via pnpm examples)
-├── dist/                  # Build output (ESM + CJS + .d.ts)
+├── dist/                  # Build output (ESM + CJS + .d.ts + global.d.ts)
+├── global.d.ts            # Global type declarations (built into dist/)
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts         # Vite Library Mode + Terser

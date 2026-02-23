@@ -426,6 +426,28 @@ export type {
 }
 ```
 
+## 全局类型（免 import）
+
+本包提供 `global.d.ts`，可将所有公开类型注入全局，省去频繁 `import type`。
+
+在项目的任意 `.d.ts` 文件（如 `types/zhiaiwan-axios.d.ts`）中添加一行：
+
+```ts
+/// <reference types="@zhiaiwan/axios/global" />
+```
+
+之后即可在整个项目中直接使用所有类型，无需手动导入：
+
+```ts
+// 不再需要 import type { ZhiAxiosInstance, ApiResponse, ... } from '@zhiaiwan/axios'
+const http: ZhiAxiosInstance = createAxios({ /* ... */ })
+
+async function getUser(): Promise<ApiResponse<UserInfo>> {
+  return http.get<UserInfo>('/user/info')
+}
+```
+
+
 ## 项目结构
 
 ```
@@ -444,7 +466,8 @@ zhiaiwan-axios/
 │   └── logger.ts          # Debug 日志
 ├── tests/                 # 单元测试 + 集成测试
 ├── examples/              # 使用示例（17 个场景，HTML + server.js，pnpm examples 运行）
-├── dist/                  # 构建产物（ESM + CJS + .d.ts）
+├── dist/                  # 构建产物（ESM + CJS + .d.ts + global.d.ts）
+├── global.d.ts            # 全局类型声明（构建时生成到 dist/）
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts         # Vite Library Mode + Terser
