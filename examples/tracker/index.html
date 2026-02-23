@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - tracker</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Request Tracker</h1>
+      <p>实时请求队列、loading 状态、慢请求检测（阈值 <code>2000ms</code>）</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button id="fastBtn" class="btn btn-primary">快请求 (500ms)</button>
+        <button id="slowBtn" class="btn btn-warning">慢请求 (3s)</button>
+        <button id="batchBtn" class="btn btn-ghost">并发 5 个 (1-5s)</button>
+      </div>
+
+      <div class="status-row mt-md">
+        <span>Loading: <span id="loadingState" class="badge badge-idle">false</span></span>
+        <span>Queue: <strong id="queueCount">0</strong></span>
+      </div>
+
+      <div class="label mt-md">请求队列</div>
+      <div id="queueList"></div>
+
+      <div class="label mt-lg">事件日志</div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const logEl = document.getElementById('log')
+    const loadingEl = document.getElementById('loadingState')
+    const qCountEl = document.getElementById('queueCount')
+    const qListEl = document.getElementById('queueList')
+    const log = (m) => { logEl.textContent = `[${new Date().toLocaleTimeString()}] ${m}\n` + logEl.textContent }
+
+    const http = createAxios({
+      successCode: [0],
+      tracker: {
+        onLoadingChange: (l) => {
+          loadingEl.textContent = String(l)
+          loadingEl.className = 'badge ' + (l ? 'badge-active' : 'badge-idle')
+          log('loading -> ' + l)
+        },
+        onQueueChange: (q) => { qCountEl.textContent = q.length },
+        onRequestStart: (e) => log('START ' + e.method + ' ' + e.url),
+        onRequestEnd: (e) => log('END   ' + e.method + ' ' + e.url + ' [' + e.duration + 'ms]'),
+        slowThreshold: 2000,
+        onSlowRequest: (e) => log('SLOW  ' + e.method + ' ' + e.url),
+      },
+    })
+
+    document.getElementById('fastBtn').onclick = () => http.get('/tracker/server?delay=500').catch(() => {})
+    document.getElementById('slowBtn').onclick = () => http.get('/tracker/server?delay=3000').catch(() => {})
+    document.getElementById('batchBtn').onclick = () => { for (let i = 1; i <= 5; i++) http.get('/tracker/server?delay=' + i * 1000).catch(() => {}) }
+
+    setInterval(() => {
+      const q = http.queue; qCountEl.textContent = q.length
+      qListEl.innerHTML = q.map(e => {
+        const ms = Date.now() - e.startedAt
+        const cls = ms > 2000 ? 'queue-item slow' : 'queue-item'
+        return `<div class="${cls}">[${e.id.slice(0,8)}] ${e.method} ${e.url} — ${ms}ms</div>`
+      }).join('')
+    }, 200)
+  </script>
+</body>
+</html>

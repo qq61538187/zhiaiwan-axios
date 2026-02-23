@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - loading</title>
+  <link rel="stylesheet" href="../shared.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
+  <style>
+    .demo-area { position: relative; min-height: 120px; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 24px; display: flex; align-items: center; justify-content: center; color: #64748b; }
+    .indicator { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; transition: background 200ms; }
+    .dot-idle { background: #cbd5e1; }
+    .dot-loading { background: #4f46e5; animation: pulse 0.8s ease-in-out infinite alternate; }
+    @keyframes pulse { to { opacity: 0.3; transform: scale(0.8); } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Loading 状态监听</h1>
+      <p>通过 <code>tracker.onLoadingChange</code> 监听全局 loading 状态，联动 Element Plus 的 <code>ElLoading</code> 全屏遮罩与局部 Loading 指令</p>
+    </div>
+
+    <!-- 全屏 Loading -->
+    <div class="card">
+      <h3>全屏 Loading</h3>
+      <p>请求发起时自动弹出 Element Plus 全屏 Loading，请求结束后自动关闭</p>
+      <div class="btn-group">
+        <button id="fullscreenBtn" class="btn btn-primary">发起请求 (1.5s)</button>
+        <button id="fullscreenSlowBtn" class="btn btn-ghost">慢请求 (3s)</button>
+      </div>
+      <div id="fullscreenOutput" class="output mt-md"></div>
+    </div>
+
+    <!-- 局部 Loading -->
+    <div class="card">
+      <h3>局部 Loading（自定义容器）</h3>
+      <p>Loading 仅作用于指定区域，不阻塞整个页面</p>
+      <div class="btn-group mb-sm">
+        <button id="partialBtn" class="btn btn-primary">发起请求 (2s)</button>
+      </div>
+      <div id="partialArea" class="demo-area">
+        <span>数据将显示在这里</span>
+      </div>
+    </div>
+
+    <!-- 并发请求 loading 状态 -->
+    <div class="card">
+      <h3>并发请求 — Loading 状态追踪</h3>
+      <p>同时发起多个请求，<code>loading</code> 在最后一个请求结束后才变为 <code>false</code></p>
+      <div class="btn-group">
+        <button id="concurrentBtn" class="btn btn-primary">同时发起 3 个请求</button>
+      </div>
+      <div class="status-row mt-md">
+        <span class="indicator">
+          <span id="concurrentDot" class="dot dot-idle"></span>
+          <span>loading: <strong id="concurrentStatus">false</strong></span>
+        </span>
+        <span>在途请求: <strong id="concurrentCount">0</strong></span>
+      </div>
+      <div id="concurrentArea" style="position:relative;min-height:160px">
+        <div id="concurrentLog" class="log" style="min-height:160px"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus/dist/index.full.min.js"></script>
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const { ElLoading, ElMessage } = ElementPlus
+    const ts = () => new Date().toLocaleTimeString('en', { hour12: false })
+
+    // ========== 1. 全屏 Loading ==========
+    let fullscreenInstance = null
+
+    const httpFullscreen = createAxios({
+      successCode: [0],
+      tracker: {
+        onLoadingChange: (loading) => {
+          if (loading) {
+            fullscreenInstance = ElLoading.service({ fullscreen: true, text: '加载中...', background: 'rgba(255,255,255,0.8)' })
+          } else {
+            fullscreenInstance?.close()
+            fullscreenInstance = null
+          }
+        },
+      },
+    })
+
+    document.getElementById('fullscreenBtn').onclick = async () => {
+      const el = document.getElementById('fullscreenOutput')
+      try {
+        const res = await httpFullscreen.get('/loading/server?delay=1500')
+        el.textContent = JSON.stringify(res, null, 2)
+      } catch (e) { el.textContent = 'Error: ' + e.message }
+    }
+
+    document.getElementById('fullscreenSlowBtn').onclick = async () => {
+      const el = document.getElementById('fullscreenOutput')
+      try {
+        const res = await httpFullscreen.get('/loading/server?delay=3000')
+        el.textContent = JSON.stringify(res, null, 2)
+      } catch (e) { el.textContent = 'Error: ' + e.message }
+    }
+
+    // ========== 2. 局部 Loading ==========
+    let partialInstance = null
+
+    const httpPartial = createAxios({
+      successCode: [0],
+      tracker: {
+        onLoadingChange: (loading) => {
+          if (loading) {
+            partialInstance = ElLoading.service({ target: '#partialArea', text: '加载中...', background: 'rgba(255,255,255,0.9)' })
+          } else {
+            partialInstance?.close()
+            partialInstance = null
+          }
+        },
+      },
+    })
+
+    document.getElementById('partialBtn').onclick = async () => {
+      const area = document.getElementById('partialArea')
+      try {
+        const res = await httpPartial.get('/loading/server?delay=2000')
+        area.innerHTML = `<pre style="margin:0;font-size:12px">${JSON.stringify(res, null, 2)}</pre>`
+      } catch (e) { area.textContent = 'Error: ' + e.message }
+    }
+
+    // ========== 3. 并发请求 Loading 追踪 ==========
+    const dot = document.getElementById('concurrentDot')
+    const statusEl = document.getElementById('concurrentStatus')
+    const countEl = document.getElementById('concurrentCount')
+    const logEl = document.getElementById('concurrentLog')
+    const addLog = (msg) => { logEl.textContent = `[${ts()}] ${msg}\n` + logEl.textContent }
+    let concurrentLoadingInstance = null
+
+    const httpConcurrent = createAxios({
+      successCode: [0],
+      tracker: {
+        onLoadingChange: (loading) => {
+          statusEl.textContent = String(loading)
+          dot.className = loading ? 'dot dot-loading' : 'dot dot-idle'
+          addLog(`onLoadingChange → ${loading}`)
+          if (loading) {
+            concurrentLoadingInstance = ElLoading.service({
+              target: '#concurrentArea',
+              text: '请求中...',
+              background: 'rgba(15, 23, 42, 0.7)',
+            })
+          } else {
+            concurrentLoadingInstance?.close()
+            concurrentLoadingInstance = null
+            ElMessage.success('全部请求完成')
+          }
+        },
+        onQueueChange: (queue) => {
+          countEl.textContent = queue.length
+        },
+        onRequestStart: (entry) => {
+          addLog(`请求开始: ${entry.method} ${entry.url}`)
+        },
+        onRequestEnd: (entry) => {
+          addLog(`请求结束: ${entry.method} ${entry.url} (${entry.duration}ms)`)
+        },
+      },
+    })
+
+    document.getElementById('concurrentBtn').onclick = () => {
+      logEl.textContent = ''
+      addLog('同时发起 3 个请求 (500ms / 1500ms / 2500ms)')
+      httpConcurrent.get('/loading/server?delay=500').catch(() => {})
+      httpConcurrent.get('/loading/server?delay=1500').catch(() => {})
+      httpConcurrent.get('/loading/server?delay=2500').catch(() => {})
+    }
+  </script>
+</body>
+</html>

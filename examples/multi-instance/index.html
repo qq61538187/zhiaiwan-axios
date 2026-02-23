@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - multi-instance</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Multi Instance</h1>
+      <p>创建多个 <code>createAxios</code> 实例，各自配置独立互不影响。常见于：业务 API + 第三方 API + 文件服务等</p>
+    </div>
+
+    <div class="grid-2">
+      <!-- Instance A: Business API -->
+      <div class="card">
+        <h3>实例 A — 业务 API</h3>
+        <p>带 Auth Token、retry、successCode: [0]</p>
+        <div class="btn-group">
+          <button id="aOk" class="btn btn-primary">正常请求</button>
+          <button id="aFail" class="btn btn-danger">失败 (触发 retry)</button>
+        </div>
+        <div id="aLog" class="log mt-md"></div>
+      </div>
+
+      <!-- Instance B: Third-party API -->
+      <div class="card">
+        <h3>实例 B — 第三方 API</h3>
+        <p>无 Auth，responseTransform: false，timeout: 5000</p>
+        <div class="btn-group">
+          <button id="bOk" class="btn btn-primary">获取天气数据</button>
+        </div>
+        <div id="bLog" class="log mt-md"></div>
+      </div>
+    </div>
+
+    <!-- Isolation demo -->
+    <div class="card">
+      <h3>实例隔离验证</h3>
+      <p>同时触发两个实例的请求，观察各自的 loading、cache、拦截器互不干扰</p>
+      <div class="btn-group">
+        <button id="both" class="btn btn-warning">同时请求 A + B</button>
+      </div>
+      <div class="grid-2 mt-md">
+        <div>
+          <div class="label">实例 A 状态</div>
+          <div class="status-row">
+            <span>loading: <strong id="aLoading">false</strong></span>
+            <span>queue: <strong id="aQueue">0</strong></span>
+          </div>
+        </div>
+        <div>
+          <div class="label">实例 B 状态</div>
+          <div class="status-row">
+            <span>loading: <strong id="bLoading">false</strong></span>
+            <span>queue: <strong id="bQueue">0</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const ts = () => new Date().toLocaleTimeString('en', { hour12: false })
+    const mkLog = (el) => (msg, color) => {
+      const div = document.createElement('div')
+      div.textContent = `[${ts()}] ${msg}`
+      if (color) div.style.color = color
+      el.prepend(div)
+    }
+
+    const aLogEl = document.getElementById('aLog')
+    const bLogEl = document.getElementById('bLog')
+    const aLog = mkLog(aLogEl)
+    const bLog = mkLog(bLogEl)
+
+    // ========== Instance A: Business API ==========
+    const httpA = createAxios({
+      successCode: [0],
+      retry: { count: 2, delay: 500 },
+      auth: {
+        getToken: () => 'business-token-001',
+      },
+      cache: { ttl: 10000 },
+      debug: (msg) => aLog(msg),
+      tracker: {
+        onLoadingChange: (l) => { document.getElementById('aLoading').textContent = l },
+        onQueueChange: (q) => { document.getElementById('aQueue').textContent = q.length },
+      },
+    })
+
+    // ========== Instance B: Third-party API ==========
+    const httpB = createAxios({
+      timeout: 5000,
+      responseTransform: false,
+      debug: (msg) => bLog(msg),
+      tracker: {
+        onLoadingChange: (l) => { document.getElementById('bLoading').textContent = l },
+        onQueueChange: (q) => { document.getElementById('bQueue').textContent = q.length },
+      },
+    })
+
+    // === A buttons ===
+    document.getElementById('aOk').onclick = async () => {
+      try {
+        const res = await httpA.get('/multi-instance/server?api=main&delay=800')
+        aLog('✓ ' + JSON.stringify(res), '#059669')
+      } catch (e) { aLog('✗ ' + e.message, '#dc2626') }
+    }
+
+    document.getElementById('aFail').onclick = async () => {
+      try {
+        const res = await httpA.get('/multi-instance/server?api=fail&delay=300')
+        aLog('✓ ' + JSON.stringify(res), '#059669')
+      } catch (e) { aLog('✗ 重试后仍失败: ' + e.message, '#dc2626') }
+    }
+
+    // === B buttons ===
+    document.getElementById('bOk').onclick = async () => {
+      try {
+        const res = await httpB.get('/multi-instance/server?api=third-party&delay=600')
+        bLog('✓ status=' + res.status + ' data=' + JSON.stringify(res.data), '#059669')
+      } catch (e) { bLog('✗ ' + e.message, '#dc2626') }
+    }
+
+    // === Both (use unique delay to avoid cache hit from single-button requests) ===
+    document.getElementById('both').onclick = () => {
+      aLogEl.textContent = ''
+      bLogEl.textContent = ''
+      aLog('同时发起...')
+      bLog('同时发起...')
+      httpA.get('/multi-instance/server?api=main&delay=1500')
+        .then((res) => aLog('✓ A 完成: ' + JSON.stringify(res), '#059669'))
+        .catch((e) => aLog('✗ A 失败: ' + e.message, '#dc2626'))
+      httpB.get('/multi-instance/server?api=third-party&delay=1000')
+        .then((res) => bLog('✓ B 完成: status=' + res.status, '#059669'))
+        .catch((e) => bLog('✗ B 失败: ' + e.message, '#dc2626'))
+    }
+  </script>
+</body>
+</html>

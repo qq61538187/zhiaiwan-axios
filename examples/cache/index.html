@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - cache</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Response Cache</h1>
+      <p><code>cache: { ttl: 10000 }</code> — 10 秒内重复 GET 直接返回缓存。观察 <code>serverHit</code> 不变即为命中。</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button id="fetchBtn" class="btn btn-primary">GET /cache/server</button>
+        <button id="clearBtn" class="btn btn-warning">clearCache()</button>
+      </div>
+      <div class="label mt-lg">日志</div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+    const logEl = document.getElementById('log')
+    const log = (m) => { logEl.textContent = `[${new Date().toLocaleTimeString()}] ${m}\n` + logEl.textContent }
+
+    const http = createAxios({ successCode: [0], cache: { ttl: 10000, methods: ['GET'] } })
+
+    document.getElementById('fetchBtn').onclick = async () => {
+      log('GET /cache/server')
+      const t = Date.now()
+      try {
+        const res = await http.get('/cache/server')
+        const ms = Date.now() - t
+        const hint = ms < 10 ? 'CACHE HIT' : 'SERVER'
+        log(`[${hint}] serverHit=${res.data.serverHit} (${ms}ms)`)
+      } catch (e) { log('Error: ' + e.message) }
+    }
+
+    document.getElementById('clearBtn').onclick = () => { http.clearCache(); log('Cache cleared') }
+  </script>
+</body>
+</html>

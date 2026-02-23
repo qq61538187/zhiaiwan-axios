@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - throttle</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Concurrent Throttle</h1>
+      <p><code>maxConcurrent: 3</code> — 发起 10 个请求，观察排队过程</p>
+    </div>
+
+    <div class="card">
+      <button id="batchBtn" class="btn btn-primary">发起 10 个请求 (1.5s/个)</button>
+
+      <div class="label mt-lg">并发槽位 (max: 3)</div>
+      <div id="slots" class="slots">
+        <span class="slot slot-empty">—</span>
+        <span class="slot slot-empty">—</span>
+        <span class="slot slot-empty">—</span>
+      </div>
+
+      <div class="label mt-lg">日志</div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const logEl = document.getElementById('log')
+    const slotsEl = document.getElementById('slots')
+    const log = (m) => { logEl.textContent = `[${new Date().toLocaleTimeString()}] ${m}\n` + logEl.textContent }
+
+    const http = createAxios({
+      successCode: [0],
+      throttle: { maxConcurrent: 3 },
+      tracker: {
+        onQueueChange: (q) => {
+          const slots = slotsEl.children
+          for (let i = 0; i < 3; i++) {
+            if (i < q.length) { slots[i].textContent = '#' + (q[i].url.split('id=')[1] || '?'); slots[i].className = 'slot slot-active' }
+            else { slots[i].textContent = '—'; slots[i].className = 'slot slot-empty' }
+          }
+        },
+      },
+    })
+
+    document.getElementById('batchBtn').onclick = () => {
+      log('Sending 10 requests (maxConcurrent=3)...')
+      for (let i = 1; i <= 10; i++) {
+        const t = Date.now()
+        log('  queue #' + i)
+        http.get('/throttle/server?delay=1500&id=' + i)
+          .then(() => log('  done #' + i + ' (' + (Date.now() - t) + 'ms)'))
+          .catch(e => log('  fail #' + i + ': ' + e.message))
+      }
+    }
+  </script>
+</body>
+</html>

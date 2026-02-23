@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - error handling</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Error Handling</h1>
+      <p><code>onError</code> 按 <code>ErrorType</code> 分类。返回 <code>void</code> = 抛错，<code>false</code> = 吞掉，其他值 = 降级数据。</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button class="btn btn-success" data-s="success">成功 (code=0)</button>
+        <button class="btn btn-warning" data-s="business">业务错误</button>
+        <button class="btn btn-danger" data-s="http">HTTP 500</button>
+        <button class="btn btn-ghost" data-s="timeout">超时 (2s)</button>
+      </div>
+
+      <div class="label mt-lg">onError 钩子</div>
+      <div id="hookLog" class="log"></div>
+
+      <div class="label mt-md">调用方结果</div>
+      <div id="callerLog" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios, ErrorType } from '@zhiaiwan/axios'
+
+    const hLog = document.getElementById('hookLog')
+    const cLog = document.getElementById('callerLog')
+    const logH = (m) => { hLog.textContent = `[${new Date().toLocaleTimeString()}] ${m}\n` + hLog.textContent }
+    const logC = (m) => { cLog.textContent = `[${new Date().toLocaleTimeString()}] ${m}\n` + cLog.textContent }
+
+    const http = createAxios({
+      timeout: 2000, successCode: [0],
+      onError: (err, type, cfg) => {
+        logH(`[${type}] ${err.message}`)
+        if (type === ErrorType.Cancel) return
+        if (type === ErrorType.Timeout) { logH('  -> fallback data'); return { code: -2, data: null, message: 'timeout fallback' } }
+        if (type === ErrorType.Business) { logH('  -> swallow (false)'); return false }
+        logH('  -> rethrow')
+      },
+    })
+
+    document.querySelectorAll('[data-s]').forEach(btn => {
+      btn.onclick = async () => {
+        const s = btn.dataset.s
+        logC('GET ?scenario=' + s)
+        try { const r = await http.get('/error-handling/server?scenario=' + s); logC('resolve: ' + JSON.stringify(r)) }
+        catch (e) { logC('reject: ' + e.message) }
+      }
+    })
+  </script>
+</body>
+</html>

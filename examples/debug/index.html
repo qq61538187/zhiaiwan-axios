@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - debug</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Debug Logger</h1>
+      <p>启用 <code>debug</code> 选项后，每个请求的方法、URL、状态码和耗时会实时输出到日志面板</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button id="okBtn" class="btn btn-primary">正常请求</button>
+        <button id="slowBtn" class="btn btn-warning">慢请求 (800ms)</button>
+        <button id="failBtn" class="btn btn-danger">失败请求 (500)</button>
+        <button id="clearBtn" class="btn btn-ghost">清空日志</button>
+      </div>
+      <div id="log" class="log mt-md"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const log = document.getElementById('log')
+
+    const http = createAxios({
+      successCode: [0],
+      debug: (msg, ...args) => {
+        const ts = new Date().toLocaleTimeString('en', { hour12: false })
+        const extra = args.length ? '  ' + JSON.stringify(args[0]) : ''
+        log.textContent = `[${ts}] ${msg}${extra}\n` + log.textContent
+      },
+    })
+
+    document.getElementById('okBtn').onclick = () => {
+      http.get('/debug/server').catch(() => {})
+    }
+
+    document.getElementById('slowBtn').onclick = () => {
+      http.get('/debug/server?delay=800').catch(() => {})
+    }
+
+    document.getElementById('failBtn').onclick = () => {
+      http.get('/debug/server?fail=1').catch(() => {})
+    }
+
+    document.getElementById('clearBtn').onclick = () => { log.textContent = '' }
+  </script>
+</body>
+</html>

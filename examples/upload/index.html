@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - upload</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>File Upload</h1>
+      <p>支持 FormData 和普通对象（自动转 FormData），带上传进度回调</p>
+    </div>
+
+    <div class="card">
+      <label class="label">选择文件</label>
+      <input id="file" type="file" class="input input-file">
+      <input id="desc" class="input mt-sm" placeholder="文件描述">
+      <div class="btn-group mt-md">
+        <button id="uploadBtn" class="btn btn-primary">上传 (FormData)</button>
+        <button id="uploadObjBtn" class="btn btn-ghost">上传 (Object 自动转换)</button>
+      </div>
+      <div class="progress-track mt-md">
+        <div id="bar" class="progress-bar"></div>
+      </div>
+      <div id="label" class="progress-label">0%</div>
+      <div id="output" class="output"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+    const http = createAxios({ successCode: [0] })
+    const output = document.getElementById('output')
+    const bar = document.getElementById('bar')
+    const label = document.getElementById('label')
+
+    const setProgress = (p) => { bar.style.width = p + '%'; label.textContent = p + '%' }
+
+    document.getElementById('uploadBtn').onclick = async () => {
+      const file = document.getElementById('file').files[0]
+      if (!file) { output.textContent = '请选择文件'; return }
+      const fd = new FormData(); fd.append('file', file); fd.append('description', document.getElementById('desc').value)
+      setProgress(0)
+      try { const r = await http.upload('/upload/server', fd, { onProgress: ({ percent }) => setProgress(percent) }); output.textContent = JSON.stringify(r, null, 2) }
+      catch (e) { output.textContent = 'Error: ' + e.message }
+    }
+
+    document.getElementById('uploadObjBtn').onclick = async () => {
+      const file = document.getElementById('file').files[0]
+      if (!file) { output.textContent = '请选择文件'; return }
+      setProgress(0)
+      try { const r = await http.upload('/upload/server', { file, description: document.getElementById('desc').value, tags: ['demo'] }, { onProgress: ({ percent }) => setProgress(percent) }); output.textContent = JSON.stringify(r, null, 2) }
+      catch (e) { output.textContent = 'Error: ' + e.message }
+    }
+  </script>
+</body>
+</html>

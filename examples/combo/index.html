@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - combo</title>
+  <link rel="stylesheet" href="../shared.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
+  <style>
+    .config-block { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace; font-size: 12px; line-height: 1.8; color: #334155; white-space: pre-wrap; margin-bottom: 20px; }
+    .config-block .k { color: #4f46e5; }
+    .config-block .c { color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Combo — 真实项目完整配置</h1>
+      <p>一个实例同时启用 <code>auth</code> + <code>retry</code> + <code>cache</code> + <code>cancel</code> + <code>throttle</code> + <code>loading</code> + <code>onError</code> + <code>debug</code>，模拟真实项目级配置</p>
+    </div>
+
+    <!-- Config preview -->
+    <div class="config-block"><span class="c">// 完整配置一览</span>
+const http = createAxios({
+  <span class="k">successCode</span>: [0],
+  <span class="k">auth</span>: { getToken, refreshToken, onUnauthorized },
+  <span class="k">retry</span>: { count: 2, delay: 800, methods: ['GET'] },
+  <span class="k">cache</span>: { ttl: 15000 },
+  <span class="k">cancel</span>: { deduplicate: true },
+  <span class="k">throttle</span>: { maxConcurrent: 3 },
+  <span class="k">tracker</span>: { onLoadingChange, slowThreshold: 3000, onSlowRequest },
+  <span class="k">debug</span>: true,
+  <span class="k">onError</span>: (err, type) =&gt; { <span class="c">/* 分类处理 */</span> },
+})</div>
+
+    <!-- Action panel -->
+    <div class="card">
+      <h3>操作面板</h3>
+      <div class="btn-group" style="flex-wrap:wrap">
+        <button data-action="users" class="btn btn-primary">获取用户列表</button>
+        <button data-action="users-cache" class="btn btn-ghost">再次获取 (命中缓存)</button>
+        <button data-action="flaky" class="btn btn-warning">不稳定接口 (触发 retry)</button>
+        <button data-action="slow" class="btn btn-danger">慢请求 (4s, 触发 slowRequest)</button>
+        <button data-action="expire" class="btn btn-ghost">使 Token 过期</button>
+        <button data-action="burst" class="btn btn-primary">并发 5 个请求 (限流 3)</button>
+        <button data-action="clear-cache" class="btn btn-ghost">清除缓存</button>
+      </div>
+
+      <div class="status-row mt-md">
+        <span>loading: <strong id="loadingStatus">false</strong></span>
+        <span>在途: <strong id="queueCount">0</strong></span>
+        <span>Token: <strong id="tokenDisplay" class="mono">token-001</strong></span>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <h3>实时日志</h3>
+      <button id="clearLog" class="btn btn-ghost mb-sm">清空</button>
+      <div id="log" class="log" style="max-height:400px"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus/dist/index.full.min.js"></script>
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { createAxios } from '@zhiaiwan/axios'
+
+    const { ElLoading, ElMessage } = ElementPlus
+
+    const logEl = document.getElementById('log')
+    const loadingEl = document.getElementById('loadingStatus')
+    const queueEl = document.getElementById('queueCount')
+    const tokenEl = document.getElementById('tokenDisplay')
+
+    const ts = () => new Date().toLocaleTimeString('en', { hour12: false })
+    const addLog = (msg, color) => {
+      const div = document.createElement('div')
+      div.textContent = `[${ts()}] ${msg}`
+      if (color) div.style.color = color
+      logEl.prepend(div)
+    }
+
+    let clientToken = 'token-001'
+    let loadingInstance = null
+
+    const http = createAxios({
+      successCode: [0],
+
+      auth: {
+        getToken: () => clientToken,
+        refreshToken: async () => {
+          addLog('🔄 refreshToken() 调用...', '#f59e0b')
+          const res = await fetch('/combo/server?action=refresh', { method: 'POST' })
+          const data = await res.json()
+          clientToken = data.data
+          tokenEl.textContent = clientToken
+          addLog(`🔄 Token 刷新为: ${clientToken}`, '#f59e0b')
+          return clientToken
+        },
+        onUnauthorized: () => {
+          addLog('🚫 onUnauthorized — 需要重新登录', '#dc2626')
+          ElMessage.error('登录已过期，请重新登录')
+        },
+      },
+
+      retry: { count: 2, delay: 800, methods: ['GET'] },
+      cache: { ttl: 15000 },
+      cancel: { deduplicate: true },
+      throttle: { maxConcurrent: 3 },
+
+      tracker: {
+        onLoadingChange: (loading) => {
+          loadingEl.textContent = String(loading)
+          if (loading) {
+            loadingInstance = ElLoading.service({ fullscreen: true, text: '请求中...', background: 'rgba(255,255,255,0.7)' })
+          } else {
+            loadingInstance?.close()
+            loadingInstance = null
+          }
+        },
+        onQueueChange: (q) => { queueEl.textContent = q.length },
+        slowThreshold: 3000,
+        onSlowRequest: (entry) => {
+          const elapsed = Date.now() - entry.startedAt
+          addLog(`⏳ 慢请求: ${entry.url} 已耗时 ${elapsed}ms`, '#f59e0b')
+          ElMessage.warning({ message: '请求较慢，请耐心等待', duration: 3000 })
+        },
+      },
+
+      debug: (msg, ...args) => {
+        const extra = args.length ? ' ' + JSON.stringify(args[0]) : ''
+        addLog(`[debug] ${msg}${extra}`, '#64748b')
+      },
+
+      onError: (err, type) => {
+        addLog(`❌ onError [${type}]: ${err.message}`, '#dc2626')
+        if (type === 'cancel') return false
+        if (type === 'network') {
+          ElMessage.error('网络不可用')
+          return { code: 0, data: null, message: '网络不可用 (降级)' }
+        }
+      },
+    })
+
+    // === Actions ===
+    const actions = {
+      async users() {
+        addLog('→ 获取用户列表')
+        try {
+          const res = await http.get('/combo/server?action=users&delay=500')
+          addLog('✓ ' + JSON.stringify(res), '#059669')
+        } catch (e) { addLog('✗ ' + e.message, '#dc2626') }
+      },
+
+      async 'users-cache'() {
+        addLog('→ 再次获取 (应命中缓存)')
+        try {
+          const res = await http.get('/combo/server?action=users&delay=500')
+          addLog('✓ (cache hit) ' + JSON.stringify(res), '#059669')
+        } catch (e) { addLog('✗ ' + e.message, '#dc2626') }
+      },
+
+      async flaky() {
+        addLog('→ 不稳定接口 (可能触发 retry)')
+        try {
+          const res = await http.get('/combo/server?action=flaky')
+          addLog('✓ 最终成功: ' + JSON.stringify(res), '#059669')
+        } catch (e) { addLog('✗ 重试后仍失败: ' + e.message, '#dc2626') }
+      },
+
+      async slow() {
+        addLog('→ 慢请求 (4s, 阈值 3s)')
+        try {
+          const res = await http.get('/combo/server?action=users&delay=4000')
+          addLog('✓ ' + JSON.stringify(res), '#059669')
+        } catch (e) { addLog('✗ ' + e.message, '#dc2626') }
+      },
+
+      expire() {
+        clientToken = 'expired-token'
+        tokenEl.textContent = clientToken
+        addLog('⚡ Token 已设为过期，下次请求将触发 401 → refreshToken', '#f59e0b')
+      },
+
+      burst() {
+        addLog('→ 并发 5 个请求 (throttle: maxConcurrent=3)')
+        for (let i = 1; i <= 5; i++) {
+          http.get(`/combo/server?delay=${300 + i * 200}`)
+            .then((res) => addLog(`  ✓ 请求 #${i} 完成`, '#059669'))
+            .catch((e) => addLog(`  ✗ 请求 #${i}: ${e.message}`, '#dc2626'))
+        }
+      },
+
+      'clear-cache'() {
+        http.clearCache()
+        addLog('🗑 缓存已清除')
+        ElMessage.success('缓存已清除')
+      },
+    }
+
+    document.addEventListener('click', (e) => {
+      const action = e.target.dataset?.action
+      if (action && actions[action]) actions[action]()
+    })
+
+    document.getElementById('clearLog').onclick = () => { logEl.textContent = '' }
+  </script>
+</body>
+</html>
