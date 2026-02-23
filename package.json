@@ -1,6 +1,6 @@
 {
   "name": "@zhiaiwan/axios",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "author": "Lixiaofei 61538187@qq.com",
   "description": "A modern, type-safe HTTP client built on top of axios with request cancellation, retry, token refresh, and interceptor pipeline.",
   "bugs": {
