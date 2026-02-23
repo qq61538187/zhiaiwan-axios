@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+### Minor Changes
+
+- 0b2524f: feat: add global type declarations (import-free usage via /// <reference types>)
+
 ## 1.0.0
 
 ### Major Changes
