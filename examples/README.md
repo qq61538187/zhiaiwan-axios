@@ -25,6 +25,7 @@ pnpm examples
 | [download](./download/) | 文件下载（Blob + 进度条 + 自动保存） |
 | [loading](./loading/) | Loading 状态监听（Element Plus 全屏/局部 Loading + 并发追踪） |
 | [error-handling](./error-handling/) | 全局 onError 钩子、错误类型分类、降级数据 |
+| [classify-error](./classify-error/) | `classifyError` + `ZhiAxiosError` 显式分类与排查 |
 | [debug](./debug/) | Debug 日志输出（请求/响应/耗时） |
 | [slow-request](./slow-request/) | 慢请求检测（slowThreshold + onSlowRequest + Toast 提示） |
 | [per-request-override](./per-request-override/) | 单请求覆盖全局配置（successCode / retry / responseTransform） |

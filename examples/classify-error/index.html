@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>@zhiaiwan/axios - classify error</title>
+  <link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1>Classify Error</h1>
+      <p>演示 <code>classifyError</code> 与 <code>ZhiAxiosError</code>，快速识别错误来源并做差异化处理。</p>
+    </div>
+
+    <div class="card">
+      <div class="btn-group">
+        <button class="btn btn-success" data-scenario="ok">成功</button>
+        <button class="btn btn-warning" data-scenario="business">业务错误</button>
+        <button class="btn btn-danger" data-scenario="http">HTTP 503</button>
+        <button class="btn btn-ghost" data-scenario="timeout">超时</button>
+      </div>
+
+      <div class="label mt-lg">结果</div>
+      <div id="result" class="output"></div>
+
+      <div class="label mt-md">日志</div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "axios": "../../node_modules/axios/dist/esm/axios.min.js", "@zhiaiwan/axios": "../../dist/index.js" } }
+  </script>
+  <script type="module">
+    import { ZhiAxiosError, classifyError, createAxios } from '@zhiaiwan/axios'
+
+    const $log = document.getElementById('log')
+    const $result = document.getElementById('result')
+
+    const log = (msg) => {
+      $log.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + $log.textContent
+    }
+
+    const show = (data) => {
+      $result.textContent = JSON.stringify(data, null, 2)
+    }
+
+    const http = createAxios({
+      timeout: 1200,
+      successCode: [0],
+      onError: () => {
+        // 让调用方接收原始错误并自行 classify
+      },
+    })
+
+    async function runScenario(scenario) {
+      log(`GET /classify-error/server?scenario=${scenario}`)
+      try {
+        const res = await http.get('/classify-error/server', { params: { scenario } })
+        show({ scenario, ok: true, data: res })
+      } catch (error) {
+        const type = classifyError(error)
+        const isZhiAxiosError = error instanceof ZhiAxiosError
+        const message = error instanceof Error ? error.message : String(error)
+        const output = { scenario, ok: false, type, isZhiAxiosError, message }
+        show(output)
+        log(`type=${type}, isZhiAxiosError=${isZhiAxiosError}, message=${message}`)
+      }
+    }
+
+    document.querySelectorAll('[data-scenario]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        runScenario(btn.dataset.scenario)
+      })
+    })
+  </script>
+</body>
+</html>
