@@ -9,7 +9,7 @@
 
 A modern, type-safe HTTP client built on top of axios, providing out-of-the-box request queue tracking, group cancellation, automatic retry, token refresh, error classification, concurrency limiting, response caching, and debug logging.
 
-## Requirements
+### Requirements
 
 - Node.js >= 20
 
@@ -334,7 +334,7 @@ dispose2()
 http.axios.defaults.headers.common['X-App'] = 'my-app'
 ```
 
-## CreateAxiosOptions
+## Configuration Table (CreateAxiosOptions)
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -447,6 +447,14 @@ async function getUser(): Promise<ApiResponse<UserInfo>> {
 }
 ```
 
+## Examples
+
+- Run: `pnpm build && pnpm examples`
+- URL: `http://localhost:3000`
+- Catalog: `examples/README.md`
+- Covered capabilities: CRUD, interceptors, token refresh, retry, cancellation, cache, throttle, tracker, upload/download, error classification, combo scenario
+- UX rule: fixed top-right `中文 / EN` switch with persisted language preference
+
 
 ## Project Structure
 
@@ -476,7 +484,47 @@ zhiaiwan-axios/
 └── .changeset/            # Changesets version management
 ```
 
-## Development
+## FAQ
+
+### 1) Why do I get a Business Error on a successful HTTP response?
+
+The backend `code` is not included in your `successCode` list.  
+Default success code is `0`. Set global or per-request overrides:
+
+```ts
+http.get('/legacy-api', { successCode: [200] })
+```
+
+### 2) When should I use global retry vs per-request retry?
+
+- Global `retry`: stable default strategy for most requests
+- Per-request `retry`: strengthen or disable retry for a specific endpoint
+
+```ts
+http.get('/order/create', { retry: false })
+http.get('/flaky', { retry: { count: 5, delay: 300 } })
+```
+
+### 3) What is the fastest way to debug a failing request chain?
+
+Recommended order:
+
+1. Enable `debug: true` to inspect request/response logs
+2. Add `tracker.onRequestStart/onRequestEnd` for timing and queue visibility
+3. Branch handling in `onError` by `ErrorType`
+4. Use `classifyError(error)` for explicit classification in custom paths
+
+### 4) Why does `download()` return Blob while `get()` returns business JSON?
+
+`download()` forces `responseType: 'blob'` and `responseTransform: false`, so it returns `AxiosResponse<Blob>`.  
+`get()` follows normal business response transform semantics.
+
+### 5) What about environments without AbortController?
+
+Cancellation features rely on standard abort signals.  
+Use runtime polyfills when needed, or disable deduplicate cancellation and keep basic request flow.
+
+## Development Commands
 
 ```bash
 # Install dependencies

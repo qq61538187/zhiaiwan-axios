@@ -9,6 +9,8 @@ pnpm examples
 
 然后打开 [http://localhost:3000](http://localhost:3000)
 
+> 所有示例页面支持右上角固定 `中文 / EN` 切换，语言选择会自动持久化到 `localStorage`。
+
 ## 示例列表
 
 | 示例 | 功能 |

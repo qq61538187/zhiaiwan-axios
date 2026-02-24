@@ -9,7 +9,7 @@
 
 基于 axios 二次封装的现代化、类型安全的 HTTP 客户端，开箱即用地提供请求队列追踪、分组取消、自动重试、Token 刷新、错误分类、并发限制、响应缓存和 Debug 日志。
 
-## 环境要求
+### 环境要求
 
 - Node.js >= 20
 
@@ -334,7 +334,7 @@ dispose2()
 http.axios.defaults.headers.common['X-App'] = 'my-app'
 ```
 
-## CreateAxiosOptions
+## 配置表（CreateAxiosOptions）
 
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -447,6 +447,14 @@ async function getUser(): Promise<ApiResponse<UserInfo>> {
 }
 ```
 
+## 示例
+
+- 运行方式：`pnpm build && pnpm examples`
+- 访问地址：`http://localhost:3000`
+- 示例总览：`examples/README.md`
+- 已覆盖能力：基础 CRUD、拦截器、Token 刷新、重试、取消、缓存、限流、队列追踪、上传下载、错误分类、组合配置
+- 交互规范：页面右上角支持 `中文 / EN` 切换，并持久化语言选择
+
 
 ## 项目结构
 
@@ -476,7 +484,47 @@ zhiaiwan-axios/
 └── .changeset/            # Changesets 版本管理
 ```
 
-## 开发
+## FAQ / 常见问题
+
+### 1) 为什么请求成功了却抛出 Business Error？
+
+后端返回的 `code` 不在当前 `successCode` 列表中。默认只认 `0`。  
+可在全局配置 `successCode: [0, 200]`，或在单请求中覆盖：
+
+```ts
+http.get('/legacy-api', { successCode: [200] })
+```
+
+### 2) 什么时候用全局 `retry`，什么时候用单请求 `retry`？
+
+- 全局 `retry`：适合稳定的统一重试策略（如 GET 请求短暂网络抖动）
+- 单请求 `retry`：适合个别接口强化/禁用重试
+
+```ts
+http.get('/order/create', { retry: false })
+http.get('/flaky', { retry: { count: 5, delay: 300 } })
+```
+
+### 3) 如何快速排查请求链路问题？
+
+推荐按这个顺序：
+
+1. 打开 `debug: true` 查看请求日志
+2. 结合 `tracker.onRequestStart/onRequestEnd` 查看耗时与队列
+3. 在 `onError` 中按 `ErrorType` 分支处理并记录日志
+4. 对异常链路使用 `classifyError(error)` 二次确认错误类型
+
+### 4) 为什么有时下载返回的是 Blob，有时是业务 JSON？
+
+`download()` 默认强制 `responseType: 'blob'` 且 `responseTransform: false`，返回完整 `AxiosResponse<Blob>`。  
+如果你用 `get()` 请求下载接口，会走普通业务解包流程，语义不同。
+
+### 5) 旧浏览器或不支持 AbortController 的环境怎么办？
+
+请先确认运行时 polyfill。该库的取消能力依赖标准中断信号。  
+如无法提供中断能力，可禁用去重取消，或仅使用基础请求能力。
+
+## 开发命令
 
 ```bash
 # 安装依赖
