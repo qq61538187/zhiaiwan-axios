@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+### Patch Changes
+
+- 3e5f47d: remove examples i18n switch injection and keep examples as single-language demos
+
 ## 1.1.0
 
 ### Minor Changes
