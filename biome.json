@@ -1,8 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
+  "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -13,22 +10,23 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-      "complexity": {
-        "noForEach": "off"
-      },
-      "style": {
-        "noNonNullAssertion": "off"
+      "complexity": { "noForEach": "off" },
+      "style": { "noNonNullAssertion": "off" }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
       }
     }
   },
   "overrides": [
     {
-      "include": ["tests/**"],
+      "includes": ["tests/**"],
       "linter": {
         "rules": {
-          "suspicious": {
-            "noExplicitAny": "off"
-          }
+          "suspicious": { "noExplicitAny": "off" }
         }
       }
     }

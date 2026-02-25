@@ -47,7 +47,7 @@ const { data } = await http.get<UserInfo>('/user/info')
 console.log(data.name)
 ```
 
-## Full Configuration
+### Full Configuration Example
 
 ```ts
 import { createAxios } from '@zhiaiwan/axios'
@@ -61,6 +61,7 @@ const http = createAxios({
   // --- Request deduplication ---
   cancel: {
     deduplicate: true,
+    key: 'method-url-params-data',
   },
 
   // --- Auto retry ---
@@ -162,7 +163,8 @@ http.get('/users', {
   successCode: [0, 200],         // Per-request success codes (overrides global)
   responseTransform: false,      // Disable unwrapping for this request (overrides global)
   retry: { count: 5 },           // Per-request retry config (overrides global)
-  retry: false,                  // Disable retry for this request
+  cache: false,                  // Skip cache read/write for this request
+  cacheKey: 'user:list',         // Custom cache key
 })
 ```
 
@@ -223,6 +225,7 @@ http.cancelAll()                  // Cancel all
 
 ```ts
 http.clearCache() // Clear all response cache
+http.invalidateCache(/^users:/) // Invalidate by key / RegExp / matcher fn; returns removed count
 ```
 
 ### Lifecycle Hooks (TrackerHooks)
@@ -336,50 +339,53 @@ http.axios.defaults.headers.common['X-App'] = 'my-app'
 
 ## Configuration Table (CreateAxiosOptions)
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `baseURL` | `string` | — | Base request URL |
-| `timeout` | `number` | — | Timeout in ms |
-| `headers` | `object` | — | Default request headers |
-| `requestInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | Custom request interceptors (registered at creation) |
-| `responseInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | Custom response interceptors (registered at creation) |
-| `cancel.deduplicate` | `boolean` | `false` | Auto-cancel duplicate requests |
-| `retry.count` | `number` | `0` | Max retry attempts |
-| `retry.delay` | `number` | `1000` | Initial retry delay (ms) |
-| `retry.statusCodes` | `number[]` | `[408,500,502,503,504]` | Status codes that trigger retry |
-| `retry.maxDelay` | `number` | `30000` | Max retry delay (ms), caps exponential backoff |
-| `retry.methods` | `string[]` | `['GET','HEAD','OPTIONS','PUT','DELETE']` | Methods allowed to retry |
-| `retry.shouldRetry` | `(error, count) => boolean` | — | Custom retry predicate |
-| `auth.getToken` | `() => string \| null \| Promise<...>` | — | Get current token |
-| `auth.refreshToken` | `() => Promise<string>` | — | Refresh token |
-| `auth.headerName` | `string` | `'Authorization'` | Token header name |
-| `auth.tokenPrefix` | `string` | `'Bearer'` | Token prefix |
-| `auth.onUnauthorized` | `() => void` | — | Callback when refresh fails |
-| `successCode` | `number \| number[]` | `[0]` | Business success codes |
-| `onError` | `(error, type, config?) => void \| false \| T` | — | Global error hook: `void` throws normally, `false` swallows, other values resolve as fallback data |
-| `responseTransform` | `false \| (res) => unknown` | Unwraps `response.data` | Response transformation |
-| `tracker.onQueueChange` | `(queue) => void` | — | Queue change callback |
-| `tracker.onLoadingChange` | `(loading) => void` | — | Loading state change callback |
-| `tracker.onRequestStart` | `(entry) => void` | — | Request start callback |
-| `tracker.onRequestEnd` | `(entry) => void` | — | Request end callback (includes duration) |
-| `tracker.slowThreshold` | `number` | `0` (disabled) | Slow request threshold (ms) |
-| `tracker.onSlowRequest` | `(entry) => void` | — | Slow request callback |
-| `throttle.maxConcurrent` | `number` | `Infinity` | Max concurrent requests |
-| `cache.ttl` | `number` | `0` (disabled) | Cache TTL (ms), in-memory cache |
-| `cache.methods` | `string[]` | `['GET']` | Methods to cache |
-| `debug` | `boolean \| (msg, ...args) => void` | `false` | Debug logging |
+| Property | Type | Default | Description | Since | Deprecated | Replacement |
+|----------|------|---------|-------------|-------|------------|-------------|
+| `baseURL` | `string` | — | Base request URL | `1.1.0` | No | - |
+| `timeout` | `number` | — | Timeout in ms | `1.1.0` | No | - |
+| `headers` | `object` | — | Default request headers | `1.1.0` | No | - |
+| `requestInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | Custom request interceptors (registered at creation) | `1.1.0` | No | - |
+| `responseInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | Custom response interceptors (registered at creation) | `1.1.0` | No | - |
+| `cancel.deduplicate` | `boolean` | `false` | Auto-cancel duplicate requests | `1.1.0` | No | - |
+| `cancel.key` | `'method-url' \| 'method-url-params-data' \| ((config)=>string)` | `'method-url'` | Deduplication key strategy | `1.1.0` | No | - |
+| `retry.count` | `number` | `0` | Max retry attempts | `1.1.0` | No | - |
+| `retry.delay` | `number` | `1000` | Initial retry delay (ms) | `1.1.0` | No | - |
+| `retry.statusCodes` | `number[]` | `[408,500,502,503,504]` | Status codes that trigger retry | `1.1.0` | No | - |
+| `retry.maxDelay` | `number` | `30000` | Max retry delay (ms), caps exponential backoff | `1.1.0` | No | - |
+| `retry.methods` | `string[]` | `['GET','HEAD','OPTIONS','PUT','DELETE']` | Methods allowed to retry | `1.1.0` | No | - |
+| `retry.shouldRetry` | `(error, count) => boolean` | — | Custom retry predicate | `1.1.0` | No | - |
+| `auth.getToken` | `() => string \| null \| Promise<...>` | — | Get current token | `1.1.0` | No | - |
+| `auth.refreshToken` | `() => Promise<string>` | — | Refresh token | `1.1.0` | No | - |
+| `auth.headerName` | `string` | `'Authorization'` | Token header name | `1.1.0` | No | - |
+| `auth.tokenPrefix` | `string` | `'Bearer'` | Token prefix | `1.1.0` | No | - |
+| `auth.onUnauthorized` | `() => void` | — | Callback when refresh fails | `1.1.0` | No | - |
+| `successCode` | `number \| number[]` | `[0]` | Business success codes | `1.1.0` | No | - |
+| `onError` | `(error, type, config?) => void \| false \| T` | — | Global error hook: `void` throws normally, `false` swallows, other values resolve as fallback data | `1.1.0` | No | - |
+| `responseTransform` | `false \| (res) => unknown` | Unwraps `response.data` | Response transformation | `1.1.0` | No | - |
+| `tracker.onQueueChange` | `(queue) => void` | — | Queue change callback | `1.1.0` | No | - |
+| `tracker.onLoadingChange` | `(loading) => void` | — | Loading state change callback | `1.1.0` | No | - |
+| `tracker.onRequestStart` | `(entry) => void` | — | Request start callback | `1.1.0` | No | - |
+| `tracker.onRequestEnd` | `(entry) => void` | — | Request end callback (includes duration) | `1.1.0` | No | - |
+| `tracker.slowThreshold` | `number` | `0` (disabled) | Slow request threshold (ms) | `1.1.0` | No | - |
+| `tracker.onSlowRequest` | `(entry) => void` | — | Slow request callback | `1.1.0` | No | - |
+| `throttle.maxConcurrent` | `number` | `Infinity` | Max concurrent requests | `1.1.0` | No | - |
+| `cache.ttl` | `number` | `0` (disabled) | Cache TTL (ms), in-memory cache | `1.1.0` | No | - |
+| `cache.methods` | `string[]` | `['GET']` | Methods to cache | `1.1.0` | No | - |
+| `debug` | `boolean \| (msg, ...args) => void` | `false` | Debug logging | `1.1.0` | No | - |
 
 > All native [AxiosRequestConfig](https://axios-http.com/docs/req_config) properties are also accepted.
 
 ### Per-request Extra Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `requestId` | `string` | Custom request ID |
-| `requestGroup` | `string` | Request group tag |
-| `successCode` | `number \| number[]` | Override global success codes |
-| `responseTransform` | `false \| (res) => unknown` | Override global response transform |
-| `retry` | `RetryOptions \| false` | Override global retry config, `false` to disable |
+| Field | Type | Description | Since | Deprecated | Replacement |
+|-------|------|-------------|-------|------------|-------------|
+| `requestId` | `string` | Custom request ID | `1.1.0` | No | - |
+| `requestGroup` | `string` | Request group tag | `1.1.0` | No | - |
+| `successCode` | `number \| number[]` | Override global success codes | `1.1.0` | No | - |
+| `responseTransform` | `false \| (res) => unknown` | Override global response transform | `1.1.0` | No | - |
+| `retry` | `RetryOptions \| false` | Override global retry config, `false` to disable | `1.1.0` | No | - |
+| `cache` | `boolean` | Set `false` to skip cache read/write for this request | `1.1.0` | No | - |
+| `cacheKey` | `string` | Override the default cache key | `1.1.0` | No | - |
 
 All methods (`get`/`post`/`put`/`patch`/`delete`/`request`/`upload`/`download`) accept `RequestOptions` type with full support for the above extra fields — no `as any` needed:
 
@@ -415,7 +421,7 @@ export { version }
 
 // Types
 export type {
-  ApiResponse, AuthOptions, CacheOptions, CancelOptions, CreateAxiosOptions,
+  ApiResponse, AuthOptions, CacheMatcher, CacheOptions, CancelOptions, CreateAxiosOptions,
   ExtendedRequestConfig, RequestOptions, ProgressCallback, RequestEntry, RetryOptions,
   ThrottleOptions, TrackerHooks, ZhiAxiosInstance,
   // Interceptor types
@@ -426,7 +432,7 @@ export type {
 }
 ```
 
-## Global Types (import-free)
+### Global Types (import-free)
 
 This package ships a `global.d.ts` that injects all public types into the global scope, eliminating the need for frequent `import type` statements.
 
@@ -452,7 +458,7 @@ async function getUser(): Promise<ApiResponse<UserInfo>> {
 - Run: `pnpm build && pnpm examples`
 - URL: `http://localhost:3000`
 - Catalog: `examples/README.md`
-- Covered capabilities: CRUD, interceptors, token refresh, retry, cancellation, cache, throttle, tracker, upload/download, error classification, combo scenario
+- Covered capabilities: CRUD + `request(config)`, interceptors (`onRequest`/`onResponse`), token refresh, retry, cancellation (`cancel.key`), cache (`cacheKey`/`cache:false`/`invalidateCache`), throttle, tracker, upload/download, error classification, `destroy()`
 - UX rule: fixed top-right `中文 / EN` switch with persisted language preference
 
 
@@ -475,7 +481,6 @@ zhiaiwan-axios/
 ├── tests/                 # Unit tests + integration tests
 ├── examples/              # Usage examples (17 scenarios, HTML + server.js, run via pnpm examples)
 ├── dist/                  # Build output (ESM + CJS + .d.ts + global.d.ts)
-├── global.d.ts            # Global type declarations (built into dist/)
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts         # Vite Library Mode + Terser
@@ -541,6 +546,9 @@ pnpm typecheck
 
 # Run tests
 pnpm test:run
+
+# Node artifact smoke test (CJS + ESM)
+pnpm test:node:smoke
 
 # Lint
 pnpm lint

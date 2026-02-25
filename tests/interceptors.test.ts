@@ -1,6 +1,6 @@
-import axios, { AxiosError, AxiosHeaders } from 'axios'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import axios, { AxiosError } from 'axios'
+import { describe, expect, it, vi } from 'vitest'
 import { ZhiAxiosError } from '../src/errors'
 import { installAuth, installErrorHook, installTransform } from '../src/interceptors'
 import { ErrorType } from '../src/types'

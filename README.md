@@ -47,7 +47,7 @@ const { data } = await http.get<UserInfo>('/user/info')
 console.log(data.name)
 ```
 
-## 完整配置
+### 完整配置示例
 
 ```ts
 import { createAxios } from '@zhiaiwan/axios'
@@ -61,6 +61,7 @@ const http = createAxios({
   // --- 请求去重 ---
   cancel: {
     deduplicate: true,
+    key: 'method-url-params-data',
   },
 
   // --- 自动重试 ---
@@ -162,7 +163,8 @@ http.get('/users', {
   successCode: [0, 200],         // 仅此请求的成功码（覆盖全局）
   responseTransform: false,      // 仅此请求禁用解包（覆盖全局）
   retry: { count: 5 },           // 仅此请求的重试配置（覆盖全局）
-  retry: false,                  // 禁用此请求的重试
+  cache: false,                  // 跳过此请求缓存读写
+  cacheKey: 'user:list',         // 自定义缓存 key
 })
 ```
 
@@ -223,6 +225,7 @@ http.cancelAll()                  // 取消所有
 
 ```ts
 http.clearCache() // 清空所有响应缓存
+http.invalidateCache(/^users:/) // 按 key / 正则 / 函数匹配失效缓存，返回移除条数
 ```
 
 ### 生命周期钩子（TrackerHooks）
@@ -336,50 +339,53 @@ http.axios.defaults.headers.common['X-App'] = 'my-app'
 
 ## 配置表（CreateAxiosOptions）
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `baseURL` | `string` | — | 请求基础路径 |
-| `timeout` | `number` | — | 超时时间（ms） |
-| `headers` | `object` | — | 默认请求头 |
-| `requestInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | 自定义请求拦截器（创建时注册） |
-| `responseInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | 自定义响应拦截器（创建时注册） |
-| `cancel.deduplicate` | `boolean` | `false` | 自动取消重复请求 |
-| `retry.count` | `number` | `0` | 最大重试次数 |
-| `retry.delay` | `number` | `1000` | 首次重试延迟（ms） |
-| `retry.statusCodes` | `number[]` | `[408,500,502,503,504]` | 触发重试的状态码 |
-| `retry.maxDelay` | `number` | `30000` | 最大重试延迟（ms），封顶指数退避 |
-| `retry.methods` | `string[]` | `['GET','HEAD','OPTIONS','PUT','DELETE']` | 允许重试的方法 |
-| `retry.shouldRetry` | `(error, count) => boolean` | — | 自定义重试判断 |
-| `auth.getToken` | `() => string \| null \| Promise<...>` | — | 获取当前 Token |
-| `auth.refreshToken` | `() => Promise<string>` | — | 刷新 Token |
-| `auth.headerName` | `string` | `'Authorization'` | Token 头名称 |
-| `auth.tokenPrefix` | `string` | `'Bearer'` | Token 前缀 |
-| `auth.onUnauthorized` | `() => void` | — | 刷新失败回调 |
-| `successCode` | `number \| number[]` | `[0]` | 业务成功码 |
-| `onError` | `(error, type, config?) => void \| false \| T` | — | 全局异常钩子：`void` 正常抛错，`false` 吞掉，返回其他值作为降级数据 resolve |
-| `responseTransform` | `false \| (res) => unknown` | 解包 `response.data` | 响应转换 |
-| `tracker.onQueueChange` | `(queue) => void` | — | 队列变化回调 |
-| `tracker.onLoadingChange` | `(loading) => void` | — | loading 切换回调 |
-| `tracker.onRequestStart` | `(entry) => void` | — | 请求发起回调 |
-| `tracker.onRequestEnd` | `(entry) => void` | — | 请求结束回调（含 duration） |
-| `tracker.slowThreshold` | `number` | `0`（禁用） | 慢请求阈值（ms） |
-| `tracker.onSlowRequest` | `(entry) => void` | — | 慢请求回调 |
-| `throttle.maxConcurrent` | `number` | `Infinity` | 最大并发请求数 |
-| `cache.ttl` | `number` | `0`（禁用） | 缓存过期时间（ms），内存缓存 |
-| `cache.methods` | `string[]` | `['GET']` | 缓存的方法 |
-| `debug` | `boolean \| (msg, ...args) => void` | `false` | 调试日志 |
+| 属性 | 类型 | 默认值 | 说明 | 加入版本（since） | 是否弃用 | 替代项 |
+|------|------|--------|------|--------------------|----------|--------|
+| `baseURL` | `string` | — | 请求基础路径 | `1.1.0` | 否 | - |
+| `timeout` | `number` | — | 超时时间（ms） | `1.1.0` | 否 | - |
+| `headers` | `object` | — | 默认请求头 | `1.1.0` | 否 | - |
+| `requestInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | 自定义请求拦截器（创建时注册） | `1.1.0` | 否 | - |
+| `responseInterceptors` | `Array<Function \| { fulfilled, rejected? }>` | — | 自定义响应拦截器（创建时注册） | `1.1.0` | 否 | - |
+| `cancel.deduplicate` | `boolean` | `false` | 自动取消重复请求 | `1.1.0` | 否 | - |
+| `cancel.key` | `'method-url' \| 'method-url-params-data' \| ((config)=>string)` | `'method-url'` | 重复请求判定 key 策略 | `1.1.0` | 否 | - |
+| `retry.count` | `number` | `0` | 最大重试次数 | `1.1.0` | 否 | - |
+| `retry.delay` | `number` | `1000` | 首次重试延迟（ms） | `1.1.0` | 否 | - |
+| `retry.statusCodes` | `number[]` | `[408,500,502,503,504]` | 触发重试的状态码 | `1.1.0` | 否 | - |
+| `retry.maxDelay` | `number` | `30000` | 最大重试延迟（ms），封顶指数退避 | `1.1.0` | 否 | - |
+| `retry.methods` | `string[]` | `['GET','HEAD','OPTIONS','PUT','DELETE']` | 允许重试的方法 | `1.1.0` | 否 | - |
+| `retry.shouldRetry` | `(error, count) => boolean` | — | 自定义重试判断 | `1.1.0` | 否 | - |
+| `auth.getToken` | `() => string \| null \| Promise<...>` | — | 获取当前 Token | `1.1.0` | 否 | - |
+| `auth.refreshToken` | `() => Promise<string>` | — | 刷新 Token | `1.1.0` | 否 | - |
+| `auth.headerName` | `string` | `'Authorization'` | Token 头名称 | `1.1.0` | 否 | - |
+| `auth.tokenPrefix` | `string` | `'Bearer'` | Token 前缀 | `1.1.0` | 否 | - |
+| `auth.onUnauthorized` | `() => void` | — | 刷新失败回调 | `1.1.0` | 否 | - |
+| `successCode` | `number \| number[]` | `[0]` | 业务成功码 | `1.1.0` | 否 | - |
+| `onError` | `(error, type, config?) => void \| false \| T` | — | 全局异常钩子：`void` 正常抛错，`false` 吞掉，返回其他值作为降级数据 resolve | `1.1.0` | 否 | - |
+| `responseTransform` | `false \| (res) => unknown` | 解包 `response.data` | 响应转换 | `1.1.0` | 否 | - |
+| `tracker.onQueueChange` | `(queue) => void` | — | 队列变化回调 | `1.1.0` | 否 | - |
+| `tracker.onLoadingChange` | `(loading) => void` | — | loading 切换回调 | `1.1.0` | 否 | - |
+| `tracker.onRequestStart` | `(entry) => void` | — | 请求发起回调 | `1.1.0` | 否 | - |
+| `tracker.onRequestEnd` | `(entry) => void` | — | 请求结束回调（含 duration） | `1.1.0` | 否 | - |
+| `tracker.slowThreshold` | `number` | `0`（禁用） | 慢请求阈值（ms） | `1.1.0` | 否 | - |
+| `tracker.onSlowRequest` | `(entry) => void` | — | 慢请求回调 | `1.1.0` | 否 | - |
+| `throttle.maxConcurrent` | `number` | `Infinity` | 最大并发请求数 | `1.1.0` | 否 | - |
+| `cache.ttl` | `number` | `0`（禁用） | 缓存过期时间（ms），内存缓存 | `1.1.0` | 否 | - |
+| `cache.methods` | `string[]` | `['GET']` | 缓存的方法 | `1.1.0` | 否 | - |
+| `debug` | `boolean \| (msg, ...args) => void` | `false` | 调试日志 | `1.1.0` | 否 | - |
 
 > 除以上扩展属性外，所有 [AxiosRequestConfig](https://axios-http.com/docs/req_config) 原生属性均可传入。
 
 ### Per-request 额外字段
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `requestId` | `string` | 自定义请求 ID |
-| `requestGroup` | `string` | 请求分组标签 |
-| `successCode` | `number \| number[]` | 覆盖全局成功码 |
-| `responseTransform` | `false \| (res) => unknown` | 覆盖全局响应转换 |
-| `retry` | `RetryOptions \| false` | 覆盖全局重试配置，`false` 禁用 |
+| 字段 | 类型 | 说明 | 加入版本（since） | 是否弃用 | 替代项 |
+|------|------|------|--------------------|----------|--------|
+| `requestId` | `string` | 自定义请求 ID | `1.1.0` | 否 | - |
+| `requestGroup` | `string` | 请求分组标签 | `1.1.0` | 否 | - |
+| `successCode` | `number \| number[]` | 覆盖全局成功码 | `1.1.0` | 否 | - |
+| `responseTransform` | `false \| (res) => unknown` | 覆盖全局响应转换 | `1.1.0` | 否 | - |
+| `retry` | `RetryOptions \| false` | 覆盖全局重试配置，`false` 禁用 | `1.1.0` | 否 | - |
+| `cache` | `boolean` | `false` 时跳过本次请求缓存读写 | `1.1.0` | 否 | - |
+| `cacheKey` | `string` | 覆盖默认缓存 key（可跨请求复用） | `1.1.0` | 否 | - |
 
 所有方法（`get`/`post`/`put`/`patch`/`delete`/`request`/`upload`/`download`）均接受 `RequestOptions` 类型，支持直接传入上述扩展字段，无需 `as any`：
 
@@ -415,7 +421,7 @@ export { version }
 
 // 类型
 export type {
-  ApiResponse, AuthOptions, CacheOptions, CancelOptions, CreateAxiosOptions,
+  ApiResponse, AuthOptions, CacheMatcher, CacheOptions, CancelOptions, CreateAxiosOptions,
   ExtendedRequestConfig, RequestOptions, ProgressCallback, RequestEntry, RetryOptions,
   ThrottleOptions, TrackerHooks, ZhiAxiosInstance,
   // 拦截器类型
@@ -426,7 +432,7 @@ export type {
 }
 ```
 
-## 全局类型（免 import）
+### 全局类型（免 import）
 
 本包提供 `global.d.ts`，可将所有公开类型注入全局，省去频繁 `import type`。
 
@@ -452,7 +458,7 @@ async function getUser(): Promise<ApiResponse<UserInfo>> {
 - 运行方式：`pnpm build && pnpm examples`
 - 访问地址：`http://localhost:3000`
 - 示例总览：`examples/README.md`
-- 已覆盖能力：基础 CRUD、拦截器、Token 刷新、重试、取消、缓存、限流、队列追踪、上传下载、错误分类、组合配置
+- 已覆盖能力：基础 CRUD + `request(config)`、拦截器（`onRequest`/`onResponse`）、Token 刷新、重试、取消（含 `cancel.key`）、缓存（含 `cacheKey`/`cache:false`/`invalidateCache`）、限流、队列追踪、上传下载、错误分类、`destroy()`
 - 交互规范：页面右上角支持 `中文 / EN` 切换，并持久化语言选择
 
 
@@ -475,7 +481,6 @@ zhiaiwan-axios/
 ├── tests/                 # 单元测试 + 集成测试
 ├── examples/              # 使用示例（17 个场景，HTML + server.js，pnpm examples 运行）
 ├── dist/                  # 构建产物（ESM + CJS + .d.ts + global.d.ts）
-├── global.d.ts            # 全局类型声明（构建时生成到 dist/）
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts         # Vite Library Mode + Terser
@@ -541,6 +546,9 @@ pnpm typecheck
 
 # 运行测试
 pnpm test:run
+
+# Node 产物冒烟（CJS + ESM）
+pnpm test:node:smoke
 
 # 代码检查
 pnpm lint

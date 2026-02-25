@@ -1,7 +1,6 @@
-import axios, { AxiosError } from 'axios'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZhiAxiosError } from '../src/errors'
+import { AxiosError } from 'axios'
+import { describe, expect, it, vi } from 'vitest'
 import { createAxios } from '../src/index'
 import { ErrorType } from '../src/types'
 
@@ -159,6 +158,92 @@ describe('Integration: full pipeline', () => {
     http.clearCache()
     await http.get('/data')
     expect(callCount).toBe(2)
+  })
+
+  it('cache: per-request cache=false skips read/write', async () => {
+    let callCount = 0
+    const adapter = (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+      callCount++
+      return Promise.resolve({
+        data: { code: 0, data: callCount, message: '' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      } as AxiosResponse)
+    }
+
+    const http = createAxios({
+      adapter,
+      cache: { ttl: 60000 },
+      successCode: [0],
+    })
+
+    await http.get('/data', { cache: false })
+    await http.get('/data', { cache: false })
+
+    expect(callCount).toBe(2)
+  })
+
+  it('cache: per-request cacheKey reuses cache across different params', async () => {
+    let callCount = 0
+    const adapter = (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+      callCount++
+      return Promise.resolve({
+        data: { code: 0, data: `call-${callCount}`, message: '' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      } as AxiosResponse)
+    }
+
+    const http = createAxios({
+      adapter,
+      cache: { ttl: 60000 },
+      successCode: [0],
+    })
+
+    const first = await http.get('/data', { params: { page: 1 }, cacheKey: 'data:list' })
+    const second = await http.get('/data', { params: { page: 2 }, cacheKey: 'data:list' })
+
+    expect(callCount).toBe(1)
+    expect(first).toEqual(second)
+  })
+
+  it('invalidateCache: removes targeted entries only', async () => {
+    let callCount = 0
+    const adapter = (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+      callCount++
+      return Promise.resolve({
+        data: { code: 0, data: callCount, message: '' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      } as AxiosResponse)
+    }
+
+    const http = createAxios({
+      adapter,
+      cache: { ttl: 60000 },
+      successCode: [0],
+    })
+
+    await http.get('/users', { cacheKey: 'users:list' })
+    await http.get('/posts', { cacheKey: 'posts:list' })
+    expect(callCount).toBe(2)
+
+    await http.get('/users', { cacheKey: 'users:list' })
+    await http.get('/posts', { cacheKey: 'posts:list' })
+    expect(callCount).toBe(2)
+
+    const removed = http.invalidateCache(/^users:/)
+    expect(removed).toBe(1)
+
+    await http.get('/users', { cacheKey: 'users:list' })
+    await http.get('/posts', { cacheKey: 'posts:list' })
+    expect(callCount).toBe(3)
   })
 
   it('throttle: limits concurrent requests', async () => {
@@ -382,10 +467,10 @@ describe('Integration: full pipeline', () => {
   })
 
   it('auth refresh failure calls onUnauthorized', async () => {
-    let callCount = 0
+    let _callCount = 0
     const onUnauthorized = vi.fn()
     const adapter = (config: InternalAxiosRequestConfig) => {
-      callCount++
+      _callCount++
       return Promise.reject(
         new AxiosError('401', 'ERR', config, {}, {
           data: {},

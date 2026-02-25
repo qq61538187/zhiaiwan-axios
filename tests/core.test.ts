@@ -1,6 +1,6 @@
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
-import { ZhiAxios, createAxios } from '../src/index'
+import { createAxios, ZhiAxios } from '../src/index'
 
 function mockAdapter(body: unknown) {
   return (config: InternalAxiosRequestConfig): Promise<AxiosResponse> =>
@@ -121,6 +121,11 @@ describe('ZhiAxios new features', () => {
     expect(() => http.clearCache()).not.toThrow()
   })
 
+  it('invalidateCache should return 0 when cache is not configured', () => {
+    const http = createAxios()
+    expect(http.invalidateCache(/.*/)).toBe(0)
+  })
+
   it('should accept debug = true', () => {
     const http = createAxios({ debug: true })
     expect(http).toBeInstanceOf(ZhiAxios)
@@ -153,7 +158,7 @@ describe('ZhiAxios new features', () => {
       retry: {
         count: 3,
         methods: ['GET', 'POST'],
-        shouldRetry: (error, count) => count < 2,
+        shouldRetry: (_error, count) => count < 2,
       },
     })
     expect(http).toBeInstanceOf(ZhiAxios)

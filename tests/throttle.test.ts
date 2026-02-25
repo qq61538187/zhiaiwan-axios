@@ -1,5 +1,5 @@
 import type { AxiosHeaders, InternalAxiosRequestConfig } from 'axios'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { RequestThrottle } from '../src/throttle'
 
 function createConfig(url: string): InternalAxiosRequestConfig {

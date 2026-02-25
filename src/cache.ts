@@ -1,5 +1,10 @@
 import type { AxiosInstance, AxiosResponse } from 'axios'
-import type { CacheOptions, ExtendedRequestConfig, InternalRequestConfig } from './types'
+import type {
+  CacheMatcher,
+  CacheOptions,
+  ExtendedRequestConfig,
+  InternalRequestConfig,
+} from './types'
 
 interface CacheEntry {
   data: unknown
@@ -35,6 +40,9 @@ export class CacheManager {
   }
 
   private getKey(config: ExtendedRequestConfig): string {
+    if (typeof config.cacheKey === 'string' && config.cacheKey.length > 0) {
+      return config.cacheKey
+    }
     const method = (config.method ?? 'GET').toUpperCase()
     const url = config.url ?? ''
     const params = config.params ? stableStringify(config.params) : ''
@@ -43,6 +51,7 @@ export class CacheManager {
 
   private shouldCache(config: ExtendedRequestConfig): boolean {
     if ((config as InternalRequestConfig)._skipCache) return false
+    if (config.cache === false) return false
     const method = (config.method ?? 'GET').toUpperCase()
     return this.methods.has(method)
   }
@@ -67,6 +76,23 @@ export class CacheManager {
 
   clear(): void {
     this.store.clear()
+  }
+
+  invalidate(matcher: CacheMatcher): number {
+    let removed = 0
+    for (const key of this.store.keys()) {
+      const matched =
+        typeof matcher === 'string'
+          ? key === matcher
+          : matcher instanceof RegExp
+            ? matcher.test(key)
+            : matcher(key)
+      if (matched) {
+        this.store.delete(key)
+        removed++
+      }
+    }
+    return removed
   }
 
   get size(): number {

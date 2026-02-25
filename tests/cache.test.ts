@@ -81,4 +81,36 @@ describe('CacheManager', () => {
     customCache.set(config, 'cached-post')
     expect(customCache.get(config)).toBe('cached-post')
   })
+
+  it('should skip cache when cache is false on request', () => {
+    const config = createConfig('GET', '/users', { cache: false })
+    cache.set(config, 'data')
+    expect(cache.get(config)).toBeUndefined()
+  })
+
+  it('should use cacheKey override when provided', () => {
+    const withKeyA = createConfig('GET', '/users', { cacheKey: 'users:list' })
+    const withKeyB = createConfig('GET', '/users', { cacheKey: 'users:list' })
+    cache.set(withKeyA, ['a'])
+    expect(cache.get(withKeyB)).toEqual(['a'])
+  })
+
+  it('should invalidate by exact key, regex, and matcher function', () => {
+    cache.set(createConfig('GET', '/users', { cacheKey: 'users:1' }), { id: 1 })
+    cache.set(createConfig('GET', '/users', { cacheKey: 'users:2' }), { id: 2 })
+    cache.set(createConfig('GET', '/posts', { cacheKey: 'posts:1' }), { id: 1 })
+    expect(cache.size).toBe(3)
+
+    const removedByExact = cache.invalidate('users:1')
+    expect(removedByExact).toBe(1)
+    expect(cache.size).toBe(2)
+
+    const removedByRegex = cache.invalidate(/^users:/)
+    expect(removedByRegex).toBe(1)
+    expect(cache.size).toBe(1)
+
+    const removedByFn = cache.invalidate((key) => key.startsWith('posts:'))
+    expect(removedByFn).toBe(1)
+    expect(cache.size).toBe(0)
+  })
 })

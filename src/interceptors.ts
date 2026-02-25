@@ -1,15 +1,15 @@
 import type { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { CancelManager } from './cancel'
-import { ZhiAxiosError, classifyError } from './errors'
+import { classifyError, ZhiAxiosError } from './errors'
+import type { AuthOptions, CancelOptions, CreateAxiosOptions, InternalRequestConfig } from './types'
 import { ErrorType } from './types'
-import type { AuthOptions, CreateAxiosOptions, InternalRequestConfig } from './types'
 
 // ---------------------------------------------------------------------------
 // Cancel interceptor
 // ---------------------------------------------------------------------------
 
-export function installCancel(instance: AxiosInstance): CancelManager {
-  const manager = new CancelManager()
+export function installCancel(instance: AxiosInstance, options: CancelOptions = {}): CancelManager {
+  const manager = new CancelManager(options)
 
   instance.interceptors.request.use((config) => {
     const cfg = config as InternalRequestConfig

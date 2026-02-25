@@ -3,16 +3,24 @@ import type { CreateAxiosOptions, ZhiAxiosInstance } from './types'
 
 export { ZhiAxios } from './core'
 export const version: string = ZhiAxios.version
-export { CancelManager } from './cancel'
-export { RequestTracker } from './tracker'
-export { RequestThrottle } from './throttle'
+
+export type {
+  AxiosError,
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios'
 export { CacheManager } from './cache'
-export { ZhiAxiosError, classifyError } from './errors'
-export { ErrorType } from './types'
+export { CancelManager } from './cancel'
+export { classifyError, ZhiAxiosError } from './errors'
+export { RequestThrottle } from './throttle'
+export { RequestTracker } from './tracker'
 
 export type {
   ApiResponse,
   AuthOptions,
+  CacheMatcher,
   CacheOptions,
   CancelOptions,
   CreateAxiosOptions,
@@ -31,14 +39,7 @@ export type {
   TrackerHooks,
   ZhiAxiosInstance,
 } from './types'
-
-export type {
-  AxiosError,
-  AxiosInstance,
-  AxiosRequestConfig,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from 'axios'
+export { ErrorType } from './types'
 
 /**
  * Factory function – the recommended way to create an instance.

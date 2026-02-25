@@ -1,5 +1,5 @@
-import axios from 'axios'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import axios from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import { installLogger } from '../src/logger'
 

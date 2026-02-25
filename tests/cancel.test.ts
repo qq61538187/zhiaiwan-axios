@@ -70,4 +70,35 @@ describe('CancelManager', () => {
     expect(a.signal!.aborted).toBe(true)
     expect(b.signal!.aborted).toBe(true)
   })
+
+  it('should support method-url-params-data key strategy', () => {
+    const paramsAware = new CancelManager({ key: 'method-url-params-data' })
+    const first = createConfig('GET', '/users')
+    const second = createConfig('GET', '/users')
+    first.params = { page: 1 }
+    second.params = { page: 2 }
+
+    paramsAware.setup(first)
+    paramsAware.setup(second)
+
+    expect(first.signal!.aborted).toBe(false)
+    expect(second.signal!.aborted).toBe(false)
+  })
+
+  it('should support custom key strategy', () => {
+    const custom = new CancelManager({
+      key: (config) =>
+        `${config.method}:${config.url}:${String((config.params as { team?: string })?.team)}`,
+    })
+    const first = createConfig('GET', '/users')
+    const second = createConfig('GET', '/users')
+    first.params = { team: 'a' }
+    second.params = { team: 'a' }
+
+    custom.setup(first)
+    custom.setup(second)
+
+    expect(first.signal!.aborted).toBe(true)
+    expect(second.signal!.aborted).toBe(false)
+  })
 })

@@ -1,13 +1,14 @@
-import axios from 'axios'
 import type { AxiosInstance, AxiosResponse } from 'axios'
+import axios from 'axios'
 import { CacheManager, installCache } from './cache'
 import { installAuth, installCancel, installErrorHook, installTransform } from './interceptors'
 import { installLogger } from './logger'
 import { installRetry } from './retry'
-import { RequestThrottle, installThrottle } from './throttle'
-import { RequestTracker, installTracker, installTrackerCleanup } from './tracker'
+import { installThrottle, RequestThrottle } from './throttle'
+import { installTracker, installTrackerCleanup, RequestTracker } from './tracker'
 import type {
   ApiResponse,
+  CacheMatcher,
   CreateAxiosOptions,
   ProgressCallback,
   RequestEntry,
@@ -107,7 +108,7 @@ export class ZhiAxios implements ZhiAxiosInstance {
 
     // 5. Cancel deduplication
     if (cancel?.deduplicate) {
-      installCancel(this.axios)
+      installCancel(this.axios, cancel)
     }
 
     // 6. Auth (token injection + 401 refresh)
@@ -268,6 +269,11 @@ export class ZhiAxios implements ZhiAxiosInstance {
 
   clearCache(): void {
     this.cacheManager?.clear()
+  }
+
+  invalidateCache(matcher: CacheMatcher): number {
+    if (!this.cacheManager) return 0
+    return this.cacheManager.invalidate(matcher)
   }
 
   // ---- Lifecycle ---------------------------------------------------------

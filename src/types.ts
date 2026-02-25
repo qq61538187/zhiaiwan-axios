@@ -26,6 +26,14 @@ export interface CancelOptions {
    * @default false
    */
   deduplicate?: boolean
+  /**
+   * Deduplication key strategy.
+   * - `method-url`: method + url (legacy/default behavior)
+   * - `method-url-params-data`: method + url + params + data
+   * - custom function: return your own dedupe key
+   * @default 'method-url'
+   */
+  key?: 'method-url' | 'method-url-params-data' | ((config: AxiosRequestConfig) => string)
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +155,8 @@ export interface CacheOptions {
   methods?: string[]
 }
 
+export type CacheMatcher = string | RegExp | ((key: string) => boolean)
+
 // ---------------------------------------------------------------------------
 // Request Tracker
 // ---------------------------------------------------------------------------
@@ -209,6 +219,10 @@ export interface RequestOptions extends AxiosRequestConfig {
   responseTransform?: false | ((response: AxiosResponse) => unknown)
   /** Per-request retry override. Set `false` to disable retry for this request. */
   retry?: RetryOptions | false
+  /** Per-request cache toggle. Set `false` to skip cache read/write for this request. */
+  cache?: boolean
+  /** Per-request cache key override. */
+  cacheKey?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -227,6 +241,10 @@ export interface ExtendedRequestConfig extends InternalAxiosRequestConfig {
   responseTransform?: false | ((response: AxiosResponse) => unknown)
   /** Per-request retry override. Set `false` to disable retry for this request. */
   retry?: RetryOptions | false
+  /** Per-request cache toggle. Set `false` to skip cache read/write for this request. */
+  cache?: boolean
+  /** Per-request cache key override. */
+  cacheKey?: string
 }
 
 /**
@@ -371,6 +389,8 @@ export interface ZhiAxiosInstance {
   cancelById(id: string): void
   /** Clear the response cache. */
   clearCache(): void
+  /** Invalidate cache entries by key, RegExp, or matcher function. */
+  invalidateCache(matcher: CacheMatcher): number
   /** Cancel all requests, clear cache, and remove all interceptors. */
   destroy(): void
 }

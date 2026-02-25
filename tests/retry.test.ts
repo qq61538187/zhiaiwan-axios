@@ -1,5 +1,5 @@
-import axios, { AxiosError } from 'axios'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosError } from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installRetry } from '../src/retry'
 
@@ -213,8 +213,6 @@ describe('installRetry', () => {
 
   it('should cap backoff at maxDelay', async () => {
     let callCount = 0
-    const sleepTimes: number[] = []
-    const realSetTimeout = globalThis.setTimeout
 
     const adapter = (config: InternalAxiosRequestConfig) => {
       callCount++

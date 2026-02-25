@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosHeaders } from 'axios'
 import { describe, expect, it } from 'vitest'
-import { ZhiAxiosError, classifyError } from '../src/errors'
+import { classifyError, ZhiAxiosError } from '../src/errors'
 import { ErrorType } from '../src/types'
 
 function makeAxiosError(overrides: {
