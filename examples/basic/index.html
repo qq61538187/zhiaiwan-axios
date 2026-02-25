@@ -8,7 +8,7 @@
 <body>
   <div class="page">
     <div class="page-header">
-      <h1>CRUD — GET / POST / PUT / PATCH / DELETE</h1>
+      <h1>CRUD —— 增删改查（GET / POST / PUT / PATCH / DELETE）</h1>
       <p>覆盖全部 HTTP 方法，展示 <code>params</code>、自定义 <code>headers</code>、<code>responseTransform</code> 覆盖等常用场景</p>
     </div>
 
@@ -66,6 +66,7 @@
       <div class="btn-group">
         <input id="delId" class="input" style="width:80px;flex:none" placeholder="ID" value="3">
         <button data-action="delete" class="btn btn-danger">删除用户</button>
+        <button data-action="request" class="btn btn-ghost">request(config) 查询</button>
       </div>
       <div id="deleteOutput" class="output mt-md"></div>
     </div>
@@ -153,6 +154,18 @@
         const id = $('delId').value
         try { show($('deleteOutput'), await http.delete('/basic/server', { params: { id } })) }
         catch (e) { showErr($('deleteOutput'), e) }
+      },
+
+      // request(config)
+      async 'request'() {
+        const id = $('delId').value
+        try {
+          show($('deleteOutput'), await http.request({
+            url: '/basic/server',
+            method: 'GET',
+            params: { id },
+          }))
+        } catch (e) { showErr($('deleteOutput'), e) }
       },
     }
 

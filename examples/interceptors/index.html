@@ -8,7 +8,7 @@
 <body>
   <div class="page">
     <div class="page-header">
-      <h1>Custom Interceptors</h1>
+      <h1>自定义拦截器</h1>
       <p>配置时注册 + 运行时动态添加/移除拦截器</p>
     </div>
 
@@ -16,7 +16,9 @@
       <div class="btn-group">
         <button id="sendBtn" class="btn btn-primary">发送请求</button>
         <button id="addBtn" class="btn btn-success">添加动态拦截器</button>
+        <button id="addResBtn" class="btn btn-success">添加动态响应拦截器</button>
         <button id="removeBtn" class="btn btn-danger" disabled>移除动态拦截器</button>
+        <button id="removeResBtn" class="btn btn-danger" disabled>移除动态响应拦截器</button>
       </div>
 
       <div class="label mt-lg">拦截器日志</div>
@@ -53,16 +55,28 @@
     }
 
     let dispose = null
+    let disposeRes = null
     document.getElementById('addBtn').onclick = () => {
       dispose = http.onRequest((cfg) => { cfg.headers.set('X-Dynamic', 'hello'); logI('[DYNAMIC] injected X-Dynamic'); return cfg })
       logI('Dynamic interceptor added')
       document.getElementById('addBtn').disabled = true
       document.getElementById('removeBtn').disabled = false
     }
+    document.getElementById('addResBtn').onclick = () => {
+      disposeRes = http.onResponse((res) => { logI('[DYNAMIC RES] status=' + res.status); return res })
+      logI('Dynamic response interceptor added')
+      document.getElementById('addResBtn').disabled = true
+      document.getElementById('removeResBtn').disabled = false
+    }
     document.getElementById('removeBtn').onclick = () => {
       if (dispose) { dispose(); dispose = null; logI('Dynamic interceptor removed') }
       document.getElementById('addBtn').disabled = false
       document.getElementById('removeBtn').disabled = true
+    }
+    document.getElementById('removeResBtn').onclick = () => {
+      if (disposeRes) { disposeRes(); disposeRes = null; logI('Dynamic response interceptor removed') }
+      document.getElementById('addResBtn').disabled = false
+      document.getElementById('removeResBtn').disabled = true
     }
   </script>
 </body>

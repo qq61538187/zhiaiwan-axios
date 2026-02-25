@@ -14,7 +14,7 @@
 <body>
   <div class="page">
     <div class="page-header">
-      <h1>Combo — 真实项目完整配置</h1>
+      <h1>组合示例 —— 真实项目完整配置</h1>
       <p>一个实例同时启用 <code>auth</code> + <code>retry</code> + <code>cache</code> + <code>cancel</code> + <code>throttle</code> + <code>loading</code> + <code>onError</code> + <code>debug</code>，模拟真实项目级配置</p>
     </div>
 
@@ -43,6 +43,7 @@ const http = createAxios({
         <button data-action="expire" class="btn btn-ghost">使 Token 过期</button>
         <button data-action="burst" class="btn btn-primary">并发 5 个请求 (限流 3)</button>
         <button data-action="clear-cache" class="btn btn-ghost">清除缓存</button>
+        <button data-action="destroy" class="btn btn-danger">destroy() 释放实例</button>
       </div>
 
       <div class="status-row mt-md">
@@ -198,6 +199,12 @@ const http = createAxios({
         http.clearCache()
         addLog('🗑 缓存已清除')
         ElMessage.success('缓存已清除')
+      },
+
+      destroy() {
+        http.destroy()
+        addLog('🧹 destroy() 已执行：已取消请求、清空缓存并移除拦截器', '#f59e0b')
+        ElMessage.warning('实例已 destroy，建议刷新页面后继续演示')
       },
     }
 

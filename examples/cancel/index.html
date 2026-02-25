@@ -8,7 +8,7 @@
 <body>
   <div class="page">
     <div class="page-header">
-      <h1>Request Cancellation</h1>
+      <h1>请求取消</h1>
       <p>去重、分组取消、ID 取消、全部取消、取消中断重试</p>
     </div>
 
@@ -61,6 +61,16 @@
         <span>loading: <strong id="retryLoading">false</strong></span>
       </div>
       <div id="retryLog" class="log mt-md"></div>
+    </div>
+
+    <div class="card">
+      <h3>6. cancel.key 策略</h3>
+      <p>使用 <code>cancel: { deduplicate: true, key: 'method-url-params-data' }</code>，同 URL 不同 params 不会互相取消。</p>
+      <div class="btn-group">
+        <button id="keySameBtn" class="btn btn-danger">同 params（会去重）</button>
+        <button id="keyDiffBtn" class="btn btn-success">不同 params（不去重）</button>
+      </div>
+      <div id="keyLog" class="log mt-md"></div>
     </div>
   </div>
 
@@ -163,6 +173,31 @@
       const q = httpRetry.queue.length
       rLog(`cancelAll() — 当前队列 ${q} 个请求`, '#f59e0b')
       httpRetry.cancelAll()
+    }
+
+    // 6. cancel.key strategy
+    const httpKey = createAxios({
+      successCode: [0],
+      cancel: { deduplicate: true, key: 'method-url-params-data' },
+    })
+    const keyLog = mkLog('keyLog')
+    document.getElementById('keySameBtn').onclick = () => {
+      keyLog('send #1 q=a')
+      httpKey.get('/cancel/server?delay=2000', { params: { q: 'a' } }).catch(() => keyLog('#1 cancelled', '#dc2626'))
+      keyLog('send #2 q=a')
+      httpKey.get('/cancel/server?delay=2000', { params: { q: 'a' } })
+        .then(() => keyLog('#2 ok', '#059669'))
+        .catch(() => keyLog('#2 cancelled', '#dc2626'))
+    }
+    document.getElementById('keyDiffBtn').onclick = () => {
+      keyLog('send #1 q=a')
+      httpKey.get('/cancel/server?delay=1200', { params: { q: 'a' } })
+        .then(() => keyLog('#1 ok', '#059669'))
+        .catch(() => keyLog('#1 cancelled', '#dc2626'))
+      keyLog('send #2 q=b')
+      httpKey.get('/cancel/server?delay=1200', { params: { q: 'b' } })
+        .then(() => keyLog('#2 ok', '#059669'))
+        .catch(() => keyLog('#2 cancelled', '#dc2626'))
     }
   </script>
 </body>
